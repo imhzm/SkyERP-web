@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --primary: #0A6CF1;
+  --primary-dark: #001A3A;
+  --purple: #8B2CF5;
+  --pink: #FF4FD8;
+  --orange: #FF6636;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-purple: var(--purple);
+  --color-pink: var(--pink);
+  --color-orange: var(--orange);
+  --font-sans: var(--font-cairo), var(--font-inter), var(--font-poppins), system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-cairo), var(--font-inter), var(--font-poppins), Arial, Helvetica, sans-serif;
+  direction: rtl;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@utility glass {
+  background: rgba(10, 108, 241, 0.08);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(10, 108, 241, 0.15);
+}
+
+@utility gradient-text {
+  background: linear-gradient(135deg, #0A6CF1, #8B2CF5, #FF4FD8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility gradient-primary {
+  background: linear-gradient(135deg, #0A6CF1, #8B2CF5);
+}
+
+@utility glow-blue {
+  box-shadow: 0 0 30px rgba(10, 108, 241, 0.3);
+}
+
+@utility glow-purple {
+  box-shadow: 0 0 30px rgba(139, 44, 245, 0.3);
+}
