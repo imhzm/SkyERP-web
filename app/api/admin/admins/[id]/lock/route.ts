@@ -1,45 +1,47 @@
 import { NextRequest } from "next/server";
-import { requireAdminOrFounder } from "@/lib/middleware";
+import { requireFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
-import { User } from "@/models/User";
+import { Admin } from "@/models/Admin";
 import { writeAuditLog } from "@/lib/audit";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdminOrFounder(request);
+  const payload = requireFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
-
   const { id } = await params;
   const ip = request.headers.get("x-forwarded-for") || "unknown";
 
   try {
     await connectDB();
+    const target = await Admin.findById(id);
+    if (!target) return Response.json({ error: "المشرف غير موجود" }, { status: 404 });
+
+    if (target.role === "founder") {
+      return Response.json({ error: "لا يمكن قفل المؤسس" }, { status: 403 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const lockDuration = typeof body.duration_minutes === "number" ? body.duration_minutes : 60;
-
-    const user = await User.findById(id);
-    if (!user) return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
-
-    const isCurrentlyLocked = user.locked_until && new Date(user.locked_until) > new Date();
+    const isCurrentlyLocked = target.locked_until && new Date(target.locked_until) > new Date();
 
     if (isCurrentlyLocked) {
-      await User.findByIdAndUpdate(id, { $set: { locked_until: null } });
+      await Admin.findByIdAndUpdate(id, { $set: { locked_until: null } });
     } else {
-      await User.findByIdAndUpdate(id, {
+      await Admin.findByIdAndUpdate(id, {
         $set: { locked_until: new Date(Date.now() + lockDuration * 60 * 1000) },
       });
     }
 
     await writeAuditLog({
-      target_collection: "users",
-      action: isCurrentlyLocked ? "admin_unlock_user" : "admin_lock_user",
+      target_collection: "admin",
+      action: isCurrentlyLocked ? "admin_unlock_admin" : "admin_lock_admin",
       target_id: id,
-      target_username: user.username,
-      performed_by: payload.email || "admin",
+      target_username: target.email,
+      performed_by: payload.email,
       performed_by_type: "admin",
-      actor_role: (payload.role as any) || "admin",
+      actor_role: "founder",
       ip_address: ip,
       success: true,
       details: { duration_minutes: lockDuration },
@@ -50,7 +52,7 @@ export async function POST(
       locked: !isCurrentlyLocked,
     });
   } catch (error) {
-    console.error("Lock user error:", error);
+    console.error("Lock admin error:", error);
     return Response.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

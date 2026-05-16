@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { Invoice } from "@/models/billing/Invoice";
 import { Transaction } from "@/models/billing/Transaction";
@@ -22,7 +22,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;
@@ -44,7 +44,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   const { id } = await params;
@@ -89,6 +89,7 @@ export async function PATCH(
         target_username: invoice.username,
         performed_by: payload.email || "admin",
         performed_by_type: "admin",
+        actor_role: (payload.role as any) || "admin",
         ip_address: ip,
         success: true,
         details: { invoice_number: invoice_num, amount: parsed.data.amount, method: parsed.data.payment_method },

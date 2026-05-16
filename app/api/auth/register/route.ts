@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { generateSerialNumber } from "@/models/SerialNumber";
 import { hashPassword, generateToken } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
@@ -54,6 +55,8 @@ export async function POST(request: NextRequest) {
     const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     const emailToken = generateToken();
 
+    const serial = await generateSerialNumber();
+
     const user = await User.create({
       username,
       username_key: username.toLowerCase(),
@@ -64,7 +67,10 @@ export async function POST(request: NextRequest) {
       password_hash,
       full_name: username,
       phone: phone || null,
-      role: "employee",
+      role: "client",
+      account_type: "client",
+      serial_number: serial,
+      max_team_members: 0,
       is_active: true,
       activation: {
         status: "trial",
@@ -91,6 +97,7 @@ export async function POST(request: NextRequest) {
       target_username: username,
       performed_by: username,
       performed_by_type: "user",
+      actor_role: "client",
       ip_address: ip,
       details: { plan: "trial", trial_end: trialEnd.toISOString() },
       success: true,

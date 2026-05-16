@@ -7,6 +7,8 @@ import { ConfirmDialog } from "@/components/admin/Modal";
 
 interface User {
   id: string; username: string; email: string; full_name: string; role: string;
+  account_type: string; owner_id: string | null; serial_number: string | null;
+  team_members: number; max_team_members: number; company_name: string | null; tags: string[];
   is_active: boolean; activation_status: string; subscription_plan: string;
   subscription_end: string | null; has_hardware_binding: boolean;
   last_login: string | null; created_at: string; phone: string | null; email_verified: boolean;
@@ -23,6 +25,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [accountTypeFilter, setAccountTypeFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -31,16 +34,16 @@ export default function AdminUsersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkAction, setBulkAction] = useState("suspend");
-  const [createForm, setCreateForm] = useState({ username: "", email: "", phone: "", password: "", full_name: "", role: "employee", plan: "monthly", subscription_days: 30 });
+  const [createForm, setCreateForm] = useState({ username: "", email: "", phone: "", password: "", full_name: "", account_type: "client", owner_id: "", company_name: "", plan: "monthly", subscription_days: 30, max_team_members: 0 });
   const [createError, setCreateError] = useState("");
   const [confirmBulk, setConfirmBulk] = useState<{ action: string; onConfirm: () => void } | null>(null);
 
-  useEffect(() => { document.title = "المستخدمين - Sky ERP"; fetchUsers(); }, [page, statusFilter, roleFilter, search]);
+  useEffect(() => { document.title = "المستخدمين - Sky ERP"; fetchUsers(); }, [page, statusFilter, accountTypeFilter, roleFilter, search]);
 
   async function fetchUsers() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: "20", status: statusFilter, role: roleFilter, sort_by: "created_at", sort_order: "desc" });
+      const params = new URLSearchParams({ page: String(page), limit: "20", status: statusFilter, account_type: accountTypeFilter, role: roleFilter, sort_by: "created_at", sort_order: "desc" });
       if (search) params.set("search", search);
       const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) return;
@@ -56,11 +59,18 @@ export default function AdminUsersPage() {
     e.preventDefault();
     setCreateError("");
     try {
-      const res = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(createForm) });
+      const body = {
+        ...createForm,
+        role: createForm.account_type === "sub_user" ? "sub_user" : "client",
+        account_type: createForm.account_type,
+        owner_id: createForm.owner_id || null,
+        company_name: createForm.company_name || null,
+      };
+      const res = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setCreateError(data.error || "حدث خطأ"); return; }
       setShowCreateModal(false);
-      setCreateForm({ username: "", email: "", phone: "", password: "", full_name: "", role: "employee", plan: "monthly", subscription_days: 30 });
+      setCreateForm({ username: "", email: "", phone: "", password: "", full_name: "", account_type: "client", owner_id: "", company_name: "", plan: "monthly", subscription_days: 30, max_team_members: 0 });
       fetchUsers();
     } catch { setCreateError("حدث خطأ"); }
   }
@@ -123,10 +133,15 @@ export default function AdminUsersPage() {
             <option value="all">كل الحالات</option>
             <option value="active">نشط</option><option value="suspended">معلق</option><option value="trial">تجريبي</option><option value="expired">منتهي</option>
           </select>
+          <select value={accountTypeFilter} onChange={(e) => { setAccountTypeFilter(e.target.value); setPage(1); }}
+            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm focus:outline-none focus:border-[#0A6CF1]">
+            <option value="all">كل الأنواع</option>
+            <option value="client">عميل رئيسي</option><option value="sub_user">عضو فريق</option>
+          </select>
           <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
             className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm focus:outline-none focus:border-[#0A6CF1]">
             <option value="all">كل الأدوار</option>
-            <option value="admin">مدير</option><option value="accountant">محاسب</option><option value="sales">مبيعات</option><option value="employee">موظف</option>
+            <option value="client">عميل</option><option value="sub_user">مستخدم تابع</option>
           </select>
           {selected.size > 0 && <button onClick={() => setShowBulkModal(true)} className="px-4 py-2.5 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-lg text-sm hover:bg-orange-500/20 transition cursor-pointer">إجراء على {selected.size}</button>}
         </div>
@@ -139,25 +154,27 @@ export default function AdminUsersPage() {
                 <tr className="border-b border-white/10">
                   <th className="px-4 py-3 w-10"><input type="checkbox" checked={selected.size === users.length && users.length > 0} onChange={toggleAll} className="rounded border-white/20 bg-white/5" /></th>
                   <th className="text-right px-4 py-3 text-gray-400 font-medium">المستخدم</th>
-                  <th className="text-right px-4 py-3 text-gray-400 font-medium">البريد</th>
-                  <th className="text-right px-4 py-3 text-gray-400 font-medium">الدور</th>
+                  <th className="text-right px-4 py-3 text-gray-400 font-medium">الرقم التسلسلي</th>
+                  <th className="text-right px-4 py-3 text-gray-400 font-medium">النوع</th>
                   <th className="text-right px-4 py-3 text-gray-400 font-medium">الحالة</th>
                   <th className="text-right px-4 py-3 text-gray-400 font-medium">الخطة</th>
+                  <th className="text-right px-4 py-3 text-gray-400 font-medium">الفريق</th>
                   <th className="text-right px-4 py-3 text-gray-400 font-medium">الجهاز</th>
                   <th className="text-right px-4 py-3 text-gray-400 font-medium">آخر دخول</th>
                   <th className="text-center px-4 py-3 text-gray-400 font-medium">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 ? <tr><td colSpan={9} className="text-center py-12 text-gray-500">لا يوجد مستخدمين</td></tr>
+                {users.length === 0 ? <tr><td colSpan={10} className="text-center py-12 text-gray-500">لا يوجد مستخدمين</td></tr>
                 : users.map((user) => (
                   <tr key={user.id} className="border-b border-white/5 hover:bg-white/5 transition">
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(user.id)} onChange={() => { const n = new Set(selected); n.has(user.id) ? n.delete(user.id) : n.add(user.id); setSelected(n); }} className="rounded border-white/20 bg-white/5" /></td>
-                    <td className="px-4 py-3"><Link href={`/admin/users/${user.id}`} className="text-white hover:text-[#0A6CF1] transition font-medium">{user.full_name || user.username}</Link><p className="text-gray-500 text-xs">{user.username}</p></td>
-                    <td className="px-4 py-3 text-gray-400">{user.email}</td>
-                    <td className="px-4 py-3"><span className="text-xs px-2 py-1 rounded bg-white/10 text-gray-300">{user.role}</span></td>
+                    <td className="px-4 py-3"><Link href={`/admin/users/${user.id}`} className="text-white hover:text-[#0A6CF1] transition font-medium">{user.full_name || user.username}</Link><p className="text-gray-500 text-xs">{user.email}</p></td>
+                    <td className="px-4 py-3"><span className="text-xs font-mono text-gray-400" dir="ltr">{user.serial_number || "—"}</span></td>
+                    <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded ${user.account_type === "sub_user" ? "bg-purple-500/20 text-purple-400" : "bg-blue-500/20 text-blue-400"}`}>{user.account_type === "sub_user" ? "تابع" : "رئيسي"}</span></td>
                     <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded ${statusColors[user.activation_status] || "bg-gray-500/20 text-gray-400"}`}>{statusLabels[user.activation_status] || user.activation_status}</span></td>
                     <td className="px-4 py-3"><span className="text-xs text-gray-400">{user.subscription_plan}</span>{user.subscription_end && <p className="text-xs text-gray-500">{new Date(user.subscription_end).toLocaleDateString("ar-EG")}</p>}</td>
+                    <td className="px-4 py-3"><span className="text-xs text-gray-400">{user.account_type === "client" ? `${user.team_members || 0}/${user.max_team_members || 0}` : "—"}</span></td>
                     <td className="px-4 py-3"><span className={`text-xs ${user.has_hardware_binding ? "text-green-400" : "text-gray-500"}`}>{user.has_hardware_binding ? "مقيد" : "غير مقيد"}</span></td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{user.last_login ? new Date(user.last_login).toLocaleDateString("ar-EG") : "—"}</td>
                     <td className="px-4 py-3"><div className="flex items-center justify-center gap-2">
@@ -196,10 +213,16 @@ export default function AdminUsersPage() {
                 <div><label className="block text-xs text-gray-400 mb-1">رقم الهاتف</label><input type="tel" value={createForm.phone} onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" dir="ltr" /></div>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div><label className="block text-xs text-gray-400 mb-1">الدور</label><select value={createForm.role} onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="admin">مدير</option><option value="accountant">محاسب</option><option value="sales">مبيعات</option><option value="employee">موظف</option></select></div>
+                <div><label className="block text-xs text-gray-400 mb-1">النوع</label><select value={createForm.account_type} onChange={(e) => setCreateForm({ ...createForm, account_type: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="client">عميل رئيسي</option><option value="sub_user">مستخدم تابع</option></select></div>
                 <div><label className="block text-xs text-gray-400 mb-1">الخطة</label><select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="monthly">شهري</option><option value="half_yearly">نصف سنوي</option><option value="yearly">سنوي</option><option value="lifetime">دائم</option></select></div>
                 <div><label className="block text-xs text-gray-400 mb-1">عدد الأيام</label><input type="number" value={createForm.subscription_days} onChange={(e) => setCreateForm({ ...createForm, subscription_days: parseInt(e.target.value) || 30 })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" min={1} /></div>
               </div>
+              {createForm.account_type === "client" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-xs text-gray-400 mb-1">اسم الشركة</label><input type="text" value={createForm.company_name} onChange={(e) => setCreateForm({ ...createForm, company_name: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" /></div>
+                  <div><label className="block text-xs text-gray-400 mb-1">الحد الأقصى للفريق</label><input type="number" value={createForm.max_team_members} onChange={(e) => setCreateForm({ ...createForm, max_team_members: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" min={0} /></div>
+                </div>
+              )}
               <button type="submit" className="w-full py-2.5 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition cursor-pointer mt-2">إنشاء المستخدم</button>
             </form>
           </div>

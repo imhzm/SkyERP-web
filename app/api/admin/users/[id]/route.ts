@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { updateUserSchema } from "@/lib/validation";
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;
@@ -29,6 +29,15 @@ export async function GET(
         full_name: user.full_name,
         phone: user.phone,
         role: user.role,
+        account_type: user.account_type || "client",
+        owner_id: user.owner_id?.toString() || null,
+        serial_number: user.serial_number || null,
+        team_members: user.team_members || [],
+        max_team_members: user.max_team_members || 0,
+        company_name: user.company_name || null,
+        notes: user.notes || "",
+        tags: user.tags || [],
+        created_by_admin_id: user.created_by_admin_id?.toString() || null,
         is_active: user.is_active,
         email_verified: user.email_verified,
         hardware_hash: user.hardware_hash,
@@ -56,7 +65,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;
@@ -82,7 +91,12 @@ export async function PATCH(
     if (fields.full_name !== undefined) update.full_name = fields.full_name;
     if (fields.phone !== undefined) update.phone = fields.phone || null;
     if (fields.role !== undefined) update.role = fields.role;
+    if (fields.account_type !== undefined) update.account_type = fields.account_type;
     if (fields.is_active !== undefined) update.is_active = fields.is_active;
+    if (fields.notes !== undefined) update.notes = fields.notes;
+    if (fields.tags !== undefined) update.tags = fields.tags;
+    if (fields.company_name !== undefined) update.company_name = fields.company_name;
+    if (fields.max_team_members !== undefined) update.max_team_members = fields.max_team_members;
 
     if (activation_status) {
       update["activation.status"] = activation_status;
@@ -97,6 +111,7 @@ export async function PATCH(
       target_username: user.username,
       performed_by: payload.email,
       performed_by_type: "admin",
+      actor_role: (payload.role as any) || "admin",
       details: { changes: parsed.data },
       success: true,
     });
@@ -112,7 +127,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;

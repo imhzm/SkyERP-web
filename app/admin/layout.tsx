@@ -6,6 +6,13 @@ import Link from "next/link";
 
 interface AdminUser {
   id: string; email: string; full_name: string; role: string;
+  permissions?: {
+    can_manage_users: boolean;
+    can_manage_billing: boolean;
+    can_view_audit: boolean;
+    can_manage_admins: boolean;
+    can_manage_settings: boolean;
+  };
 }
 
 interface AdminContextType {
@@ -16,14 +23,25 @@ interface AdminContextType {
 const AdminCtx = createContext<AdminContextType>({ admin: null, refresh: async () => {} });
 export const useAdmin = () => useContext(AdminCtx);
 
-const navItems = [
-  { href: "/admin/dashboard", label: "لوحة التحكم", icon: "📊" },
-  { href: "/admin/users", label: "المستخدمين", icon: "👥" },
-  { href: "/admin/billing", label: "الفواتير", icon: "💰" },
-  { href: "/admin/billing/plans", label: "الخطط", icon: "📋" },
-  { href: "/admin/activity", label: "النشاطات", icon: "📜" },
-  { href: "/admin/settings", label: "الإعدادات", icon: "⚙️" },
+const allNavItems = [
+  { href: "/admin/dashboard", label: "لوحة التحكم", icon: "📊", permission: null as string | null },
+  { href: "/admin/users", label: "المستخدمين", icon: "👥", permission: "can_manage_users" },
+  { href: "/admin/admins", label: "المشرفين", icon: "🔐", permission: "can_manage_admins" },
+  { href: "/admin/billing", label: "الفواتير", icon: "💰", permission: "can_manage_billing" },
+  { href: "/admin/billing/plans", label: "الخطط", icon: "📋", permission: "can_manage_billing" },
+  { href: "/admin/reports", label: "التقارير", icon: "📈", permission: null },
+  { href: "/admin/activity", label: "النشاطات", icon: "📜", permission: "can_view_audit" },
+  { href: "/admin/settings", label: "الإعدادات", icon: "⚙️", permission: "can_manage_settings" },
 ];
+
+function getNavItems(role: string, permissions?: AdminUser["permissions"]) {
+  const isFounder = role === "founder";
+  return allNavItems.filter((item) => {
+    if (!item.permission) return true;
+    if (isFounder) return true;
+    return permissions?.[item.permission as keyof NonNullable<AdminUser["permissions"]>] === true;
+  });
+}
 
 function isActive(href: string, pathname: string): boolean {
   if (href === "/admin/dashboard") return pathname === href || pathname === "/admin";
@@ -112,7 +130,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <nav className="space-y-1">
-              {navItems.map((item) => (
+              {getNavItems(admin.role, admin.permissions).map((item) => (
                 <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition ${
                     isActive(item.href, pathname)

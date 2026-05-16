@@ -5,6 +5,7 @@ import { User } from "@/models/User";
 import { verifyPassword, signAccessToken, signRefreshToken, hashToken, setAuthCookies } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { checkRateLimit, resetRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
+import { checkCascadingExpiry } from "@/lib/subscription";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
@@ -69,6 +70,13 @@ export async function POST(request: NextRequest) {
         { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" },
         { status: 401 }
       );
+    }
+
+    if (user.account_type === "sub_user" && user.owner_id) {
+      const cascading = await checkCascadingExpiry(user._id.toString());
+      if (cascading.blocked) {
+        return Response.json({ error: cascading.reason || "تم تعليق حسابك" }, { status: 403 });
+      }
     }
 
     await User.updateOne(
@@ -157,6 +165,8 @@ export async function POST(request: NextRequest) {
         email: user.email,
         full_name: user.full_name,
         role: user.role,
+        account_type: user.account_type || "client",
+        serial_number: user.serial_number || null,
         activation: {
           status: user.activation?.status || "trial",
           trial_end: user.activation?.trial_end,

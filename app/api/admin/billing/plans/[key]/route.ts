@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { Plan } from "@/models/billing/Plan";
 import { writeAuditLog } from "@/lib/audit";
@@ -21,7 +21,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ key: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
   const { key } = await params;
 
@@ -40,7 +40,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ key: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   const { key } = await params;
@@ -62,6 +62,7 @@ export async function PATCH(
       target_id: plan._id.toString(),
       performed_by: payload.email || "admin",
       performed_by_type: "admin",
+      actor_role: (payload.role as any) || "admin",
       ip_address: ip,
       success: true,
       details: { key, changes: Object.keys(parsed.data) },

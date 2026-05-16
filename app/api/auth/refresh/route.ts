@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "غير مصرح" }, { status: 401 });
       }
 
-      const newAccess = signAccessToken({ sub: payload.sub, type: "admin", role: "super_admin", email: admin.email });
+      const newAccess = signAccessToken({ sub: payload.sub, type: "admin", role: admin.role, email: admin.email });
       const newRefresh = signRefreshToken({ sub: payload.sub, type: "admin" });
       const newHash = hashToken(newRefresh);
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

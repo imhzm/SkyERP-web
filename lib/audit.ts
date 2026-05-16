@@ -8,6 +8,7 @@ interface AuditEntry {
   target_username?: string | null;
   performed_by?: string | null;
   performed_by_type?: "user" | "admin" | "system";
+  actor_role?: "founder" | "super_admin" | "admin" | "support" | "client" | "sub_user" | null;
   ip_address?: string;
   details?: Record<string, any>;
   success?: boolean;
@@ -23,6 +24,7 @@ export async function writeAuditLog(entry: AuditEntry): Promise<void> {
       target_username: entry.target_username || null,
       performed_by: entry.performed_by || null,
       performed_by_type: entry.performed_by_type || "system",
+      actor_role: entry.actor_role || null,
       ip_address: entry.ip_address || "",
       user_agent: "",
       details: entry.details || {},

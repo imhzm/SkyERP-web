@@ -14,7 +14,9 @@ const actionLabels: Record<string, string> = {
   admin_create_plan: "إنشاء خطة", admin_update_plan: "تعديل خطة",
   admin_change_password: "تغيير كلمة مرور المشرف",
 };
-const collectionLabels: Record<string, string> = { users: "المستخدمين", admin: "المشرفين", invoices: "الفواتير", plans: "الخطط", audit_log: "سجل النشاطات" };
+  const collectionLabels: Record<string, string> = { users: "المستخدمين", admin: "المشرفين", invoices: "الفواتير", plans: "الخطط", audit_log: "سجل النشاطات" };
+  const roleLabels: Record<string, string> = { founder: "مؤسس", super_admin: "مشرف عام", admin: "مشرف", support: "دعم", client: "عميل", sub_user: "مستخدم تابع" };
+  const roleColors: Record<string, string> = { founder: "bg-amber-500/20 text-amber-400", super_admin: "bg-red-500/20 text-red-400", admin: "bg-blue-500/20 text-blue-400", support: "bg-purple-500/20 text-purple-400", client: "bg-green-500/20 text-green-400", sub_user: "bg-gray-500/20 text-gray-400" };
 
 export default function AdminActivityPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -95,6 +97,7 @@ export default function AdminActivityPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm text-white">{actionLabels[log.action] || log.action}</p>
                       <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-gray-400">{collectionLabels[log.target_collection] || log.target_collection}</span>
+                      {log.actor_role && <span className={`text-xs px-1.5 py-0.5 rounded ${roleColors[log.actor_role] || "bg-gray-500/20 text-gray-400"}`}>{roleLabels[log.actor_role] || log.actor_role}</span>}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">{log.performed_by} · {log.ip_address || "—"}{log.target_username && ` · ${log.target_username}`}</p>
                     {log.details && <p className="text-xs text-gray-600 mt-0.5">{typeof log.details === "string" ? log.details : JSON.stringify(log.details).substring(0, 120)}</p>}

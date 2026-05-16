@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { writeAuditLog } from "@/lib/audit";
@@ -8,7 +8,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;
@@ -27,7 +27,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;
@@ -56,6 +56,7 @@ export async function DELETE(
       target_username: user?.username || null,
       performed_by: payload.email || "admin",
       performed_by_type: "admin",
+      actor_role: (payload.role as any) || "admin",
       ip_address: ip,
       success: true,
       details: { force_all: !sessionId, session_id: sessionId || null },

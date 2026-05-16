@@ -7,6 +7,7 @@ import { CardSkeleton } from "@/components/admin/LoadingSkeleton";
 
 interface Stats {
   users: { total: number; active: number; suspended: number; trial: number; expired: number; device_bound: number; locked: number; plans: { _id: string; count: number }[] };
+  admins: { total: number; founders: number };
   revenue: { total: number; invoices: { total: number; paid: number; overdue: number } };
   recent: { registrations: any[]; logins: any[] };
 }
@@ -53,10 +54,19 @@ export default function AdminDashboardPage() {
     finally { setLoading(false); }
   }
 
+  const isFounder = admin?.role === "founder";
+
   return (
     <div className="p-4 sm:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-white">لوحة التحكم</h1>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">لوحة التحكم</h1>
+          {admin?.role && (
+            <p className="text-xs text-gray-500 mt-1">
+              مرحباً {admin?.full_name || admin?.email} · <span className="text-[#0A6CF1]">{isFounder ? "المؤسس" : "مشرف"}</span>
+            </p>
+          )}
+        </div>
         <button onClick={fetchStats} className="text-xs text-gray-400 hover:text-white px-3 py-1.5 bg-white/5 rounded-lg transition cursor-pointer">تحديث</button>
       </div>
 
@@ -76,6 +86,7 @@ export default function AdminDashboardPage() {
             <StatCard label="مقيد الجهاز" value={stats.users.device_bound} color="bg-cyan-500" icon="💻" />
             <StatCard label="مقفول" value={stats.users.locked} color="bg-orange-500" icon="🔐" />
             <StatCard label="الإيرادات" value={`${stats.revenue.total.toLocaleString()} ج.م`} color="bg-emerald-500" icon="💰" />
+            {isFounder && <StatCard label="المشرفين" value={stats.admins?.total || 0} color="bg-amber-500" icon="🛡️" />}
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
@@ -125,6 +136,9 @@ export default function AdminDashboardPage() {
                 <Link href="/admin/users" className="block px-4 py-2.5 bg-[#0A6CF1]/10 text-[#0A6CF1] rounded-lg text-sm font-medium text-center hover:bg-[#0A6CF1]/20 transition">+ إضافة مستخدم جديد</Link>
                 <Link href="/admin/billing/invoices" className="block px-4 py-2.5 bg-white/5 text-gray-300 rounded-lg text-sm text-center hover:bg-white/10 transition">إنشاء فاتورة جديدة</Link>
                 <Link href="/admin/activity" className="block px-4 py-2.5 bg-white/5 text-gray-300 rounded-lg text-sm text-center hover:bg-white/10 transition">عرض سجل النشاطات</Link>
+                {isFounder && (
+                  <Link href="/admin/admins" className="block px-4 py-2.5 bg-orange-500/10 text-orange-400 rounded-lg text-sm text-center hover:bg-orange-500/20 transition">إدارة المشرفين</Link>
+                )}
               </div>
             </div>
           </div>

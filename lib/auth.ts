@@ -112,6 +112,22 @@ export function verifyToken(token: string): JwtPayload | null {
   }
 }
 
+export function isFounder(payload: JwtPayload | null): boolean {
+  return payload?.type === "admin" && payload?.role === "founder";
+}
+
+export function isAdmin(payload: JwtPayload | null): boolean {
+  return payload?.type === "admin" && (payload?.role === "founder" || payload?.role === "super_admin" || payload?.role === "admin" || payload?.role === "support");
+}
+
+export function requireFounder(payload: JwtPayload | null): payload is JwtPayload {
+  return isFounder(payload);
+}
+
+export function requireAdminOrFounder(payload: JwtPayload | null): payload is JwtPayload {
+  return isAdmin(payload);
+}
+
 export function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }

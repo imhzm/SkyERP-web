@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     );
     resetRateLimit(`admin:${admin._id}`);
 
-    const accessToken = signAccessToken({ sub: admin._id.toString(), type: "admin", role: "super_admin", email: admin.email });
+    const accessToken = signAccessToken({ sub: admin._id.toString(), type: "admin", role: admin.role, email: admin.email });
     const refreshToken = signRefreshToken({ sub: admin._id.toString(), type: "admin" });
     const refreshHash = hashToken(refreshToken);
 
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       target_id: admin._id.toString(),
       performed_by: admin.email,
       performed_by_type: "admin",
+      actor_role: admin.role,
       ip_address: ip,
       success: true,
     });

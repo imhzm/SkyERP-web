@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { Admin } from "@/models/Admin";
 import { Invoice } from "@/models/billing/Invoice";
 import { Transaction } from "@/models/billing/Transaction";
 
@@ -18,6 +19,8 @@ export async function GET(request: NextRequest) {
       suspended_users,
       trial_users,
       expired_users,
+      total_admins,
+      founder_admins,
       total_invoices,
       paid_invoices,
       overdue_invoices,
@@ -30,6 +33,8 @@ export async function GET(request: NextRequest) {
       User.countDocuments({ is_deleted: { $ne: true }, "activation.status": "suspended" }),
       User.countDocuments({ is_deleted: { $ne: true }, "activation.status": "trial" }),
       User.countDocuments({ is_deleted: { $ne: true }, "activation.status": "expired" }),
+      Admin.countDocuments({ is_active: true }),
+      Admin.countDocuments({ role: "founder", is_active: true }),
       Invoice.countDocuments(),
       Invoice.countDocuments({ status: "paid" }),
       Invoice.countDocuments({ status: "overdue" }),
@@ -73,6 +78,10 @@ export async function GET(request: NextRequest) {
         device_bound,
         locked: locked_users,
         plans: plans_distribution,
+      },
+      admins: {
+        total: total_admins,
+        founders: founder_admins,
       },
       revenue: {
         total: total_revenue.length > 0 ? total_revenue[0].total : 0,

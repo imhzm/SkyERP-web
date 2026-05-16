@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { Plan } from "@/models/billing/Plan";
 import { writeAuditLog } from "@/lib/audit";
@@ -18,7 +18,7 @@ const planSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   try {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
   const ip = request.headers.get("x-forwarded-for") || "unknown";
 

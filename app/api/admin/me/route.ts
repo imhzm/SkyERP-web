@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       admin: {
         id: admin._id.toString(), email: admin.email, full_name: admin.full_name,
         role: admin.role, is_active: admin.is_active, last_login: admin.last_login, created_at: admin.created_at,
+        permissions: admin.permissions, notes: admin.notes, two_factor_enabled: admin.two_factor_enabled,
       },
     });
   } catch (error) {
@@ -76,6 +77,7 @@ export async function PATCH(request: NextRequest) {
       admin: {
         id: admin._id.toString(), email: admin.email, full_name: admin.full_name,
         role: admin.role, is_active: admin.is_active, last_login: admin.last_login, created_at: admin.created_at,
+        permissions: admin.permissions, notes: admin.notes, two_factor_enabled: admin.two_factor_enabled,
       },
     });
   } catch (error) {

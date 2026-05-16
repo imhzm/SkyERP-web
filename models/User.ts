@@ -11,12 +11,22 @@ export interface IUser extends Document {
   password_changed_at: Date | null;
   password_reset_token: string | null;
   password_reset_expires: Date | null;
-  role: "admin" | "accountant" | "sales" | "employee";
+  role: "client" | "sub_user";
   full_name: string;
   phone: string | null;
   is_active: boolean;
   is_deleted: boolean;
   sync_status: string;
+  account_type: "client" | "sub_user";
+  owner_id: mongoose.Types.ObjectId | null;
+  serial_number: string | null;
+  team_members: mongoose.Types.ObjectId[];
+  max_team_members: number;
+  company_name: string | null;
+  notes: string;
+  tags: string[];
+  profile_image_url: string | null;
+  created_by_admin_id: mongoose.Types.ObjectId | null;
   hardware_hash: string | null;
   hardware_first_login: Date | null;
   hardware_info: {
@@ -80,12 +90,22 @@ const UserSchema = new Schema<IUser>({
   password_changed_at: { type: Date, default: null },
   password_reset_token: { type: String, default: null },
   password_reset_expires: { type: Date, default: null },
-  role: { type: String, enum: ["admin", "accountant", "sales", "employee"], default: "employee" },
+  role: { type: String, enum: ["client", "sub_user"], default: "client" },
   full_name: { type: String, default: "" },
   phone: { type: String, default: null },
   is_active: { type: Boolean, default: true },
   is_deleted: { type: Boolean, default: false },
   sync_status: { type: String, default: "synced" },
+  account_type: { type: String, enum: ["client", "sub_user"], default: "client" },
+  owner_id: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  serial_number: { type: String, default: null, sparse: true },
+  team_members: [{ type: Schema.Types.ObjectId, ref: "User" }],
+  max_team_members: { type: Number, default: 0 },
+  company_name: { type: String, default: null },
+  notes: { type: String, default: "" },
+  tags: [{ type: String }],
+  profile_image_url: { type: String, default: null },
+  created_by_admin_id: { type: Schema.Types.ObjectId, ref: "Admin", default: null },
   hardware_hash: { type: String, default: null },
   hardware_first_login: { type: Date, default: null },
   hardware_info: { type: Schema.Types.Mixed, default: null },
@@ -124,5 +144,8 @@ const UserSchema = new Schema<IUser>({
 UserSchema.index({ "activation.status": 1 });
 UserSchema.index({ last_modified: -1 });
 UserSchema.index({ is_deleted: 1 });
+UserSchema.index({ owner_id: 1 });
+UserSchema.index({ serial_number: 1 }, { sparse: true });
+UserSchema.index({ account_type: 1 });
 
 export const User = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

@@ -7,6 +7,7 @@ export interface IAuditLog extends Document {
   target_username: string | null;
   performed_by: string | null;
   performed_by_type: "user" | "admin" | "system";
+  actor_role: "founder" | "super_admin" | "admin" | "support" | "client" | "sub_user" | null;
   ip_address: string;
   user_agent: string;
   details: Record<string, any>;
@@ -21,6 +22,7 @@ const AuditLogSchema = new Schema<IAuditLog>({
   target_username: { type: String, default: null },
   performed_by: { type: String, default: null },
   performed_by_type: { type: String, enum: ["user", "admin", "system"], default: "system" },
+  actor_role: { type: String, enum: ["founder", "super_admin", "admin", "support", "client", "sub_user", null], default: null },
   ip_address: { type: String, default: "" },
   user_agent: { type: String, default: "" },
   details: { type: Schema.Types.Mixed, default: {} },

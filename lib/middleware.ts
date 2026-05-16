@@ -1,4 +1,4 @@
-import { verifyToken, JwtPayload } from "./auth";
+import { verifyToken, JwtPayload, isAdmin, isFounder } from "./auth";
 import { NextRequest } from "next/server";
 
 export function getTokenFromRequest(request: NextRequest): JwtPayload | null {
@@ -26,7 +26,23 @@ export function requireAuth(request: NextRequest): JwtPayload | null {
 
 export function requireAdmin(request: NextRequest): JwtPayload | null {
   const payload = getTokenFromRequest(request);
-  if (!payload || payload.type !== "admin") {
+  if (!payload || !isAdmin(payload)) {
+    return null;
+  }
+  return payload;
+}
+
+export function requireFounder(request: NextRequest): JwtPayload | null {
+  const payload = getTokenFromRequest(request);
+  if (!payload || !isFounder(payload)) {
+    return null;
+  }
+  return payload;
+}
+
+export function requireAdminOrFounder(request: NextRequest): JwtPayload | null {
+  const payload = getTokenFromRequest(request);
+  if (!payload || !isAdmin(payload)) {
     return null;
   }
   return payload;

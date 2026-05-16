@@ -15,6 +15,8 @@ const limits: Record<string, RateLimitConfig> = {
   "auth:forgot-password": { maxAttempts: 3, windowMs: 60 * 60 * 1000 },
   "auth:verify-email": { maxAttempts: 5, windowMs: 60 * 60 * 1000 },
   "api:default": { maxAttempts: 100, windowMs: 60 * 1000 },
+  "api:team-create": { maxAttempts: 10, windowMs: 60 * 60 * 1000 },
+  "api:user-invoices": { maxAttempts: 30, windowMs: 60 * 1000 },
 };
 
 function cleanup(): void {

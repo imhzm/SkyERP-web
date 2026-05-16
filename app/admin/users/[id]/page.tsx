@@ -7,7 +7,10 @@ import { ConfirmDialog } from "@/components/admin/Modal";
 
 interface Detail {
   id: string; username: string; email: string; full_name: string; phone: string | null;
-  role: string; is_active: boolean; email_verified: boolean;
+  role: string; account_type: string; owner_id: string | null; serial_number: string | null;
+  team_members: any[]; max_team_members: number; company_name: string | null;
+  notes: string; tags: string[];
+  is_active: boolean; email_verified: boolean;
   hardware_hash: string | null; hardware_first_login: string | null;
   hardware_info: any;
   activation: { status: string; trial_start: string | null; trial_end: string | null; max_devices: number;
@@ -39,6 +42,8 @@ export default function AdminUserDetailPage() {
   const [subForm, setSubForm] = useState({ plan: "", end_date: "", auto_renew: false });
   const [message, setMessage] = useState("");
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+  const [notesForm, setNotesForm] = useState("");
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   useEffect(() => { document.title = "تفاصيل المستخدم - Sky ERP"; fetchUser(); fetchInvoices(); }, [userId]);
 
@@ -49,6 +54,7 @@ export default function AdminUserDetailPage() {
       const data = await res.json();
       setUser(data.user);
       setEditForm({ full_name: data.user.full_name || "", phone: data.user.phone || "", role: data.user.role, is_active: data.user.is_active, activation_status: data.user.activation?.status || "active" });
+      setNotesForm(data.user.notes || "");
       setSubForm({ plan: data.user.activation?.subscription?.plan || "monthly", end_date: data.user.activation?.subscription?.end_date ? new Date(data.user.activation.subscription.end_date).toISOString().split("T")[0] : "", auto_renew: data.user.activation?.subscription?.auto_renew || false });
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -56,6 +62,20 @@ export default function AdminUserDetailPage() {
 
   async function fetchInvoices() {
     try { const r = await fetch(`/api/admin/billing/invoices?user_id=${userId}`); if (r.ok) setInvoices((await r.json()).invoices || []); } catch {}
+  }
+
+  async function fetchTeamMembers() {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const memberIds = data.user?.team_members || [];
+        if (memberIds.length > 0) {
+          const teamRes = await fetch(`/api/admin/users?ids=${memberIds.join(",")}&limit=50`);
+          if (teamRes.ok) setTeamMembers((await teamRes.json()).users || []);
+        }
+      }
+    } catch {}
   }
 
   async function saveField(url: string, body: any, method = "PATCH") {
@@ -116,8 +136,16 @@ export default function AdminUserDetailPage() {
         {message && <div className={`${message === "حدث خطأ" ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"} rounded-lg px-4 py-3 mb-4 text-sm`}>{message}</div>}
 
         <div className="flex gap-1 mb-6 bg-white/5 rounded-lg p-1 overflow-x-auto">
-          {[{ k: "profile", l: "الملف الشخصي" }, { k: "device", l: "الجهاز" }, { k: "subscription", l: "الاشتراك" }, { k: "billing", l: "الفواتير" }, { k: "sessions", l: "الجلسات" }].map((t) => (
-            <button key={t.k} onClick={() => setTab(t.k)} className={`flex-1 py-2 text-sm rounded-md transition cursor-pointer whitespace-nowrap ${tab === t.k ? "bg-[#0A6CF1] text-white" : "text-gray-400 hover:text-white"}`}>{t.l}</button>
+          {[
+            { k: "profile", l: "الملف الشخصي" },
+            { k: "device", l: "الجهاز" },
+            { k: "subscription", l: "الاشتراك" },
+            { k: "team", l: "الفريق" },
+            { k: "billing", l: "الفواتير" },
+            { k: "sessions", l: "الجلسات" },
+            { k: "notes", l: "ملاحظات" },
+          ].map((t) => (
+            <button key={t.k} onClick={() => { setTab(t.k); if (t.k === "team") fetchTeamMembers(); }} className={`flex-1 py-2 text-sm rounded-md transition cursor-pointer whitespace-nowrap ${tab === t.k ? "bg-[#0A6CF1] text-white" : "text-gray-400 hover:text-white"}`}>{t.l}</button>
           ))}
         </div>
 
@@ -125,7 +153,22 @@ export default function AdminUserDetailPage() {
         {tab === "profile" && (
           <div className="bg-white/5 rounded-xl border border-white/10 p-6">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-              {[{ label: "اسم المستخدم", value: user.username }, { label: "البريد الإلكتروني", value: user.email + (user.email_verified ? " (مؤكد)" : "") }, { label: "الاسم كامل", value: user.full_name || "—" }, { label: "الهاتف", value: user.phone || "—" }, { label: "الدور", value: <span className="text-xs px-2 py-1 rounded bg-white/10 text-gray-300">{user.role}</span> }, { label: "تاريخ الإنشاء", value: new Date(user.created_at).toLocaleDateString("ar-EG") }, { label: "آخر دخول", value: user.last_login ? new Date(user.last_login).toLocaleString("ar-EG") : "—" }, { label: "محاولات فاشلة", value: <span className={user.failed_login_attempts > 0 ? "text-red-400" : "text-white"}>{user.failed_login_attempts}</span> }, { label: "الحساب", value: <span className={user.is_active ? "text-green-400" : "text-red-400"}>{user.is_active ? "نشط" : "موقوف"}</span> }].map((f) => (
+              {[
+                { label: "اسم المستخدم", value: user.username },
+                { label: "البريد الإلكتروني", value: user.email + (user.email_verified ? " (مؤكد)" : "") },
+                { label: "الاسم كامل", value: user.full_name || "—" },
+                { label: "الهاتف", value: user.phone || "—" },
+                { label: "الرقم التسلسلي", value: user.serial_number ? <span className="font-mono text-xs" dir="ltr">{user.serial_number}</span> : "—" },
+                { label: "النوع", value: <span className={`text-xs px-2 py-1 rounded ${user.account_type === "sub_user" ? "bg-purple-500/20 text-purple-400" : "bg-blue-500/20 text-blue-400"}`}>{user.account_type === "sub_user" ? "مستخدم تابع" : "عميل رئيسي"}</span> },
+                { label: "الشركة", value: user.company_name || "—" },
+                { label: "الدور", value: <span className="text-xs px-2 py-1 rounded bg-white/10 text-gray-300">{user.role}</span> },
+                { label: "تاريخ الإنشاء", value: new Date(user.created_at).toLocaleDateString("ar-EG") },
+                { label: "آخر دخول", value: user.last_login ? new Date(user.last_login).toLocaleString("ar-EG") : "—" },
+                { label: "محاولات فاشلة", value: <span className={user.failed_login_attempts > 0 ? "text-red-400" : "text-white"}>{user.failed_login_attempts}</span> },
+                { label: "الحساب", value: <span className={user.is_active ? "text-green-400" : "text-red-400"}>{user.is_active ? "نشط" : "موقوف"}</span> },
+                ...(user.tags?.length ? [{ label: "الوسوم", value: <div className="flex flex-wrap gap-1">{user.tags.map((t: string) => <span key={t} className="text-xs px-2 py-0.5 rounded bg-white/10 text-gray-300">{t}</span>)}</div> }] : []),
+                ...(user.owner_id ? [{ label: "التابع لـ", value: <Link href={`/admin/users/${user.owner_id}`} className="text-[#0A6CF1] hover:underline text-xs">عرض العميل الرئيسي</Link> }] : []),
+              ].map((f: any) => (
                 <div key={f.label}><p className="text-xs text-gray-500 mb-1">{f.label}</p><p className="text-white">{f.value}</p></div>
               ))}
             </div>
@@ -134,7 +177,7 @@ export default function AdminUserDetailPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div><label className="block text-xs text-gray-400 mb-1">الاسم كامل</label><input type="text" value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" /></div>
                 <div><label className="block text-xs text-gray-400 mb-1">الهاتف</label><input type="text" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" dir="ltr" /></div>
-                <div><label className="block text-xs text-gray-400 mb-1">الدور</label><select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="admin">مدير</option><option value="accountant">محاسب</option><option value="sales">مبيعات</option><option value="employee">موظف</option></select></div>
+                <div><label className="block text-xs text-gray-400 mb-1">الدور</label><select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="client">عميل</option><option value="sub_user">مستخدم تابع</option></select></div>
                 <div className="flex items-end pb-2"><label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer"><input type="checkbox" checked={editForm.is_active} onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })} className="rounded border-white/20 bg-white/5" />الحساب نشط</label></div>
               </div>
               <button onClick={() => saveField(`/api/admin/users/${userId}`, editForm)} className="mt-3 px-4 py-2 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition cursor-pointer">حفظ</button>
@@ -195,6 +238,57 @@ export default function AdminUserDetailPage() {
                   <td className="px-3 py-2 text-gray-500 text-xs">{inv.due_date ? new Date(inv.due_date).toLocaleDateString("ar-EG") : "—"}</td>
                 </tr>))}</tbody></table></div>
             )}
+          </div>
+        )}
+
+        {/* Team */}
+        {tab === "team" && (
+          <div className="bg-white/5 rounded-xl border border-white/10 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-white">أعضاء الفريق ({(user.team_members || []).length}/{user.max_team_members || 0})</h3>
+              <Link href={`/admin/users?account_type=sub_user&owner_id=${userId}`} className="text-xs text-[#0A6CF1] hover:underline">عرض الكل</Link>
+            </div>
+            {(!user.team_members || user.team_members.length === 0) ? (
+              <p className="text-gray-500 text-sm text-center py-6">لا يوجد أعضاء فريق</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-right px-3 py-2 text-gray-400 font-medium">الاسم</th>
+                      <th className="text-right px-3 py-2 text-gray-400 font-medium">البريد</th>
+                      <th className="text-right px-3 py-2 text-gray-400 font-medium">الحالة</th>
+                      <th className="text-right px-3 py-2 text-gray-400 font-medium">آخر دخول</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teamMembers.map((m: any) => (
+                      <tr key={m.id} className="border-b border-white/5">
+                        <td className="px-3 py-2"><Link href={`/admin/users/${m.id}`} className="text-[#0A6CF1] hover:underline">{m.full_name || m.username}</Link></td>
+                        <td className="px-3 py-2 text-gray-400 text-xs">{m.email}</td>
+                        <td className="px-3 py-2"><span className={`text-xs px-1.5 py-0.5 rounded ${m.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>{m.is_active ? "نشط" : "موقوف"}</span></td>
+                        <td className="px-3 py-2 text-gray-500 text-xs">{m.last_login ? new Date(m.last_login).toLocaleDateString("ar-EG") : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Notes */}
+        {tab === "notes" && (
+          <div className="bg-white/5 rounded-xl border border-white/10 p-6">
+            <h3 className="text-sm font-medium text-white mb-4">ملاحظات إدارية</h3>
+            <textarea
+              value={notesForm}
+              onChange={(e) => setNotesForm(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#0A6CF1] text-sm min-h-[120px]"
+              placeholder="أضف ملاحظات إدارية عن هذا المستخدم..."
+              dir="rtl"
+            />
+            <button onClick={() => saveField(`/api/admin/users/${userId}`, { notes: notesForm })} className="mt-3 px-4 py-2 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition cursor-pointer">حفظ الملاحظات</button>
           </div>
         )}
 

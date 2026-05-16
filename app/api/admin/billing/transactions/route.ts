@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { Transaction } from "@/models/billing/Transaction";
 import { z } from "zod";
@@ -13,7 +13,7 @@ const querySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   try {

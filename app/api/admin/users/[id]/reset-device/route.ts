@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { writeAuditLog } from "@/lib/audit";
@@ -8,7 +8,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;
@@ -41,6 +41,7 @@ export async function POST(
       target_username: user.username,
       performed_by: payload.email,
       performed_by_type: "admin",
+      actor_role: (payload.role as any) || "admin",
       details: { old_hardware_hash: oldHash ? oldHash.substring(0, 16) + "..." : null },
       success: true,
     });

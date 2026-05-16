@@ -1,13 +1,15 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import mongoose from "mongoose";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { generateSerialNumber } from "@/models/SerialNumber";
 import { hashPassword } from "@/lib/auth";
 import { createUserSchema, paginationSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 
 export async function GET(request: NextRequest) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const url = new URL(request.url);
@@ -16,6 +18,7 @@ export async function GET(request: NextRequest) {
     limit: url.searchParams.get("limit") || "20",
     search: url.searchParams.get("search") || undefined,
     status: url.searchParams.get("status") || "all",
+    account_type: url.searchParams.get("account_type") || "all",
     role: url.searchParams.get("role") || "all",
     sort_by: url.searchParams.get("sort_by") || "created_at",
     sort_order: url.searchParams.get("sort_order") || "desc",
@@ -26,7 +29,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "معاملات غير صالحة" }, { status: 400 });
   }
 
-  const { page, limit, search, status, role, sort_by, sort_order } = parsed.data;
+  const { page, limit, search, status, account_type, role, sort_by, sort_order } = parsed.data;
 
   try {
     await connectDB();
@@ -39,6 +42,10 @@ export async function GET(request: NextRequest) {
       else if (status === "expired") {
         filter["activation.status"] = { $in: ["expired", "trial"] };
       } else if (status === "trial") filter["activation.status"] = "trial";
+    }
+
+    if (account_type !== "all") {
+      filter.account_type = account_type;
     }
 
     if (role !== "all") {
@@ -71,6 +78,13 @@ export async function GET(request: NextRequest) {
       email: u.email,
       full_name: u.full_name,
       role: u.role,
+      account_type: u.account_type || "client",
+      owner_id: u.owner_id?.toString() || null,
+      serial_number: u.serial_number || null,
+      team_members: (u.team_members || []).length,
+      max_team_members: u.max_team_members || 0,
+      company_name: u.company_name || null,
+      tags: u.tags || [],
       is_active: u.is_active,
       activation_status: u.activation?.status || "trial",
       subscription_plan: u.activation?.subscription?.plan || "trial",
@@ -100,7 +114,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   let body: unknown;
@@ -112,7 +126,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: firstError.message, field: firstError.path[0] }, { status: 400 });
   }
 
-  const { username, email, phone, password, full_name, role, plan, subscription_days } = parsed.data;
+  const { username, email, phone, password, full_name, role, account_type, owner_id, plan, subscription_days, max_team_members, company_name, notes, tags } = parsed.data;
 
   try {
     await connectDB();
@@ -133,6 +147,9 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const endDate = new Date(now.getTime() + subscription_days * 24 * 60 * 60 * 1000);
+    const effectiveAccountType = account_type || (role === "sub_user" ? "sub_user" : "client");
+    const serial = effectiveAccountType === "client" ? await generateSerialNumber() : null;
+    const effectiveMaxTeam = effectiveAccountType === "client" ? (max_team_members || 0) : 0;
 
     const user = await User.create({
       username,
@@ -142,10 +159,18 @@ export async function POST(request: NextRequest) {
       password_hash: hashPassword(password),
       full_name,
       phone: phone || null,
-      role,
+      role: effectiveAccountType === "sub_user" ? "sub_user" : "client",
+      account_type: effectiveAccountType,
+      owner_id: owner_id || null,
+      serial_number: serial,
+      max_team_members: effectiveMaxTeam,
+      company_name: company_name || null,
+      notes: notes || "",
+      tags: tags || [],
+      created_by_admin_id: payload.sub ? new mongoose.Types.ObjectId(payload.sub) : null,
       is_active: true,
       activation: {
-        status: "active",
+        status: effectiveAccountType === "sub_user" ? "active" : "active",
         max_devices: 1,
         subscription: {
           plan,
@@ -167,7 +192,8 @@ export async function POST(request: NextRequest) {
       target_username: username,
       performed_by: payload.email,
       performed_by_type: "admin",
-      details: { role, plan, subscription_days },
+      actor_role: (payload.role as any) || "admin",
+      details: { role, account_type, plan, subscription_days, serial_number: serial },
       success: true,
     });
 

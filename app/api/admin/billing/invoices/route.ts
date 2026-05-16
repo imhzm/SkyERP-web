@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { Invoice } from "@/models/billing/Invoice";
 import { Transaction } from "@/models/billing/Transaction";
@@ -23,7 +23,7 @@ const createInvoiceSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   try {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
   const ip = request.headers.get("x-forwarded-for") || "unknown";
 
@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       target_username: user.username,
       performed_by: payload.email || "admin",
       performed_by_type: "admin",
+      actor_role: (payload.role as any) || "admin",
       ip_address: ip,
       success: true,
       details: { invoice_number, amount: parsed.data.amount, plan: parsed.data.plan },

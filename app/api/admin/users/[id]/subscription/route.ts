@@ -1,15 +1,16 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/middleware";
+import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { updateSubscriptionSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { syncTeamSubscriptionStatus } from "@/lib/subscription";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = requireAdmin(request);
+  const payload = requireAdminOrFounder(request);
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id } = await params;
@@ -59,11 +60,17 @@ export async function PATCH(
       target_username: user.username,
       performed_by: payload.email,
       performed_by_type: "admin",
+      actor_role: (payload.role as any) || "admin",
       details: { plan, start_date, end_date, auto_renew },
       success: true,
     });
 
-    return Response.json({ message: "تم تحديث الاشتراك بنجاح" });
+    const syncResult = await syncTeamSubscriptionStatus(id);
+    if (syncResult.updated > 0) {
+      console.log(`Synced ${syncResult.updated} team members for user ${id}`);
+    }
+
+    return Response.json({ message: "تم تحديث الاشتراك بنجاح", team_synced: syncResult.updated });
   } catch (error) {
     console.error("Admin update subscription error:", error);
     return Response.json({ error: "حدث خطأ" }, { status: 500 });
