@@ -77,6 +77,7 @@ export interface IUser extends Document {
   linked_employee_id: number | null;
   linked_employee_code: string | null;
   custom_permissions: Record<string, any> | null;
+  desktop_role: "admin" | "accountant" | "sales" | "employee" | null;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -139,6 +140,7 @@ const UserSchema = new Schema<IUser>({
   linked_employee_id: { type: Number, default: null },
   linked_employee_code: { type: String, default: null },
   custom_permissions: { type: Schema.Types.Mixed, default: null },
+  desktop_role: { type: String, enum: ["admin", "accountant", "sales", "employee", null], default: null },
 });
 
 UserSchema.index({ "activation.status": 1 });

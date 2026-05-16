@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
       trial_end: u.activation?.trial_end,
       has_hardware_binding: !!u.hardware_hash,
       hardware_first_login: u.hardware_first_login,
+      desktop_role: u.desktop_role || null,
       last_login: u.last_login,
       created_at: u.created_at,
       phone: u.phone,
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: firstError.message, field: firstError.path[0] }, { status: 400 });
   }
 
-  const { username, email, phone, password, full_name, role, account_type, owner_id, plan, subscription_days, max_team_members, company_name, notes, tags } = parsed.data;
+  const { username, email, phone, password, full_name, role, account_type, owner_id, plan, subscription_days, max_team_members, company_name, notes, tags, desktop_role } = parsed.data;
 
   try {
     await connectDB();
@@ -180,6 +181,7 @@ export async function POST(request: NextRequest) {
           grace_period_end: new Date(endDate.getTime() + 7 * 24 * 60 * 60 * 1000),
         },
       },
+      desktop_role: desktop_role || null,
       created_at: now,
       last_modified: now,
       sync_status: "synced",

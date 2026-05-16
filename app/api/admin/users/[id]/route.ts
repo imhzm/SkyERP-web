@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
+import mongoose from "mongoose";
 import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { Invoice } from "@/models/billing/Invoice";
+import { Transaction } from "@/models/billing/Transaction";
+import { AuditLog } from "@/models/AuditLog";
 import { updateUserSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -53,6 +57,7 @@ export async function GET(
         last_modified: user.last_modified,
         linked_employee_id: user.linked_employee_id,
         linked_employee_code: user.linked_employee_code,
+        desktop_role: user.desktop_role || null,
       },
     });
   } catch (error) {
@@ -97,6 +102,7 @@ export async function PATCH(
     if (fields.tags !== undefined) update.tags = fields.tags;
     if (fields.company_name !== undefined) update.company_name = fields.company_name;
     if (fields.max_team_members !== undefined) update.max_team_members = fields.max_team_members;
+    if (fields.desktop_role !== undefined) update.desktop_role = fields.desktop_role || null;
 
     if (activation_status) {
       update["activation.status"] = activation_status;
@@ -139,10 +145,59 @@ export async function DELETE(
       return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
     }
 
-    await User.updateOne(
-      { _id: id },
-      { $set: { is_deleted: true, is_active: false, last_modified: new Date() } }
+    const userId = user._id;
+    const now = new Date();
+
+    // 1. حذف الحسابات التابعة (sub-accounts) المرتبطة بهذا المستخدم
+    const subUsers = await User.find({ owner_id: userId, is_deleted: { $ne: true } });
+    const subUserIds = subUsers.map((u) => u._id);
+    if (subUserIds.length > 0) {
+      await User.updateMany(
+        { _id: { $in: subUserIds } },
+        { $set: { is_deleted: true, is_active: false, last_modified: now } }
+      );
+      // حذف فواتير ومعاملات الحسابات التابعة
+      await Invoice.updateMany(
+        { user_id: { $in: subUserIds } },
+        { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+      );
+      await Transaction.updateMany(
+        { user_id: { $in: subUserIds } },
+        { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+      );
+    }
+
+    // 2. إزالة هذا المستخدم من قائمة team_members في حساب المدير (الوالد)
+    if (user.owner_id) {
+      await User.updateOne(
+        { _id: user.owner_id },
+        { $pull: { team_members: userId } }
+      );
+    }
+
+    // 3. إزالة هذا المستخدم من team_members لأي مستخدم آخر (لو هو parent)
+    await User.updateMany(
+      { team_members: userId },
+      { $pull: { team_members: userId } }
     );
+
+    // 4. إلغاء فواتير المستخدم
+    await Invoice.updateMany(
+      { user_id: userId },
+      { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+    );
+
+    // 5. إلغاء معاملات المستخدم
+    await Transaction.updateMany(
+      { user_id: userId },
+      { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+    );
+
+    // 6. حذف سجل النشاطات الخاص بالمستخدم
+    await AuditLog.deleteMany({ target_id: id });
+
+    // 7. حذف المستخدم نهائياً (hard delete)
+    await User.deleteOne({ _id: userId });
 
     await writeAuditLog({
       target_collection: "users",
@@ -151,12 +206,22 @@ export async function DELETE(
       target_username: user.username,
       performed_by: payload.email,
       performed_by_type: "admin",
+      actor_role: (payload.role as any) || "admin",
+      details: {
+        hard_delete: true,
+        deleted_sub_accounts: subUserIds.length,
+        deleted_invoices: true,
+        deleted_transactions: true,
+      },
       success: true,
     });
 
-    return Response.json({ message: "تم حذف المستخدم بنجاح" });
+    return Response.json({
+      message: "تم حذف المستخدم نهائياً مع كل البيانات المرتبطة به",
+      deleted_sub_accounts: subUserIds.length,
+    });
   } catch (error) {
     console.error("Admin delete user error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "حدث خطأ أثناء حذف المستخدم" }, { status: 500 });
   }
 }

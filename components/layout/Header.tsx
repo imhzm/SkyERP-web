@@ -3,15 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Menu, X, ChevronDown } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { navigation } from "@/data/navigation";
 import { SITE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+const HIDDEN_PATHS = ["/dashboard", "/admin", "/login", "/register", "/forgot-password", "/reset-password"];
+
 export default function Header() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  if (HIDDEN_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return null;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl">

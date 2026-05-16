@@ -18,6 +18,7 @@ interface Detail {
   failed_login_attempts: number; locked_until: string | null;
   sessions: any[]; audit_log: any[];
   created_at: string; last_login: string | null; last_modified: string;
+  desktop_role: string | null;
 }
 
 const actionLabels: Record<string, string> = {
@@ -38,7 +39,7 @@ export default function AdminUserDetailPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile");
-  const [editForm, setEditForm] = useState({ full_name: "", phone: "", role: "", is_active: true, activation_status: "" });
+  const [editForm, setEditForm] = useState({ full_name: "", phone: "", role: "", is_active: true, activation_status: "", desktop_role: "" });
   const [subForm, setSubForm] = useState({ plan: "", end_date: "", auto_renew: false });
   const [message, setMessage] = useState("");
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
@@ -53,7 +54,7 @@ export default function AdminUserDetailPage() {
       if (res.status === 401) { router.push("/admin/login"); return; }
       const data = await res.json();
       setUser(data.user);
-      setEditForm({ full_name: data.user.full_name || "", phone: data.user.phone || "", role: data.user.role, is_active: data.user.is_active, activation_status: data.user.activation?.status || "active" });
+      setEditForm({ full_name: data.user.full_name || "", phone: data.user.phone || "", role: data.user.role, is_active: data.user.is_active, activation_status: data.user.activation?.status || "active", desktop_role: data.user.desktop_role || "" });
       setNotesForm(data.user.notes || "");
       setSubForm({ plan: data.user.activation?.subscription?.plan || "monthly", end_date: data.user.activation?.subscription?.end_date ? new Date(data.user.activation.subscription.end_date).toISOString().split("T")[0] : "", auto_renew: data.user.activation?.subscription?.auto_renew || false });
     } catch (e) { console.error(e); }
@@ -130,6 +131,7 @@ export default function AdminUserDetailPage() {
           <div className="flex items-center gap-2">
             <button onClick={lockUser} className={`px-3 py-1.5 text-xs rounded-lg border transition cursor-pointer ${isLocked ? "border-green-500/20 text-green-400 bg-green-500/10 hover:bg-green-500/20" : "border-orange-500/20 text-orange-400 bg-orange-500/10 hover:bg-orange-500/20"}`}>{isLocked ? "فتح الحساب" : "قفل الحساب"}</button>
             <button onClick={() => setConfirmAction({ title: "إنهاء الجلسات", message: "هل أنت متأكد من إنهاء كل جلسات المستخدم؟", onConfirm: forceLogout })} className="px-3 py-1.5 text-xs border border-red-500/20 text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition cursor-pointer">إنهاء الجلسات</button>
+            <button onClick={() => setConfirmAction({ title: "حذف الحساب نهائياً", message: "سيتم حذف المستخدم نهائياً مع كل الحسابات التابعة والفواتير والمعاملات. هذا الإجراء لا يمكن التراجع عنه.", onConfirm: async () => { const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" }); const data = await res.json(); if (!res.ok) { setMessage(data.error || "حدث خطأ"); return; } setMessage(data.message); setTimeout(() => router.push("/admin/users"), 1500); } })} className="px-3 py-1.5 text-xs border border-red-500/20 text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition cursor-pointer">حذف الحساب</button>
           </div>
         </div>
 
@@ -161,7 +163,8 @@ export default function AdminUserDetailPage() {
                 { label: "الرقم التسلسلي", value: user.serial_number ? <span className="font-mono text-xs" dir="ltr">{user.serial_number}</span> : "—" },
                 { label: "النوع", value: <span className={`text-xs px-2 py-1 rounded ${user.account_type === "sub_user" ? "bg-purple-500/20 text-purple-400" : "bg-blue-500/20 text-blue-400"}`}>{user.account_type === "sub_user" ? "مستخدم تابع" : "عميل رئيسي"}</span> },
                 { label: "الشركة", value: user.company_name || "—" },
-                { label: "الدور", value: <span className="text-xs px-2 py-1 rounded bg-white/10 text-gray-300">{user.role}</span> },
+                { label: "الدور (ويب)", value: <span className="text-xs px-2 py-1 rounded bg-white/10 text-gray-300">{user.role}</span> },
+                { label: "الدور (برنامج)", value: <span className={`text-xs px-2 py-1 rounded ${user.desktop_role ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}>{user.desktop_role || "غير محدد"}</span> },
                 { label: "تاريخ الإنشاء", value: new Date(user.created_at).toLocaleDateString("ar-EG") },
                 { label: "آخر دخول", value: user.last_login ? new Date(user.last_login).toLocaleString("ar-EG") : "—" },
                 { label: "محاولات فاشلة", value: <span className={user.failed_login_attempts > 0 ? "text-red-400" : "text-white"}>{user.failed_login_attempts}</span> },
@@ -178,6 +181,10 @@ export default function AdminUserDetailPage() {
                 <div><label className="block text-xs text-gray-400 mb-1">الاسم كامل</label><input type="text" value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" /></div>
                 <div><label className="block text-xs text-gray-400 mb-1">الهاتف</label><input type="text" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" dir="ltr" /></div>
                 <div><label className="block text-xs text-gray-400 mb-1">الدور</label><select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="client">عميل</option><option value="sub_user">مستخدم تابع</option></select></div>
+                <div><label className="block text-xs text-gray-400 mb-1">الدور (برنامج)</label>
+                  <select value={editForm.desktop_role} onChange={(e) => setEditForm({ ...editForm, desktop_role: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm">
+                    <option value="">غير محدد</option><option value="admin">مدير</option><option value="accountant">محاسب</option><option value="sales">مبيعات</option><option value="employee">موظف</option>
+                  </select></div>
                 <div className="flex items-end pb-2"><label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer"><input type="checkbox" checked={editForm.is_active} onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })} className="rounded border-white/20 bg-white/5" />الحساب نشط</label></div>
               </div>
               <button onClick={() => saveField(`/api/admin/users/${userId}`, editForm)} className="mt-3 px-4 py-2 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition cursor-pointer">حفظ</button>

@@ -34,7 +34,7 @@ export default function AdminUsersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkAction, setBulkAction] = useState("suspend");
-  const [createForm, setCreateForm] = useState({ username: "", email: "", phone: "", password: "", full_name: "", account_type: "client", owner_id: "", company_name: "", plan: "monthly", subscription_days: 30, max_team_members: 0 });
+  const [createForm, setCreateForm] = useState({ username: "", email: "", phone: "", password: "", full_name: "", account_type: "client", owner_id: "", company_name: "", plan: "monthly", subscription_days: 30, max_team_members: 0, desktop_role: "" });
   const [createError, setCreateError] = useState("");
   const [confirmBulk, setConfirmBulk] = useState<{ action: string; onConfirm: () => void } | null>(null);
 
@@ -65,12 +65,13 @@ export default function AdminUsersPage() {
         account_type: createForm.account_type,
         owner_id: createForm.owner_id || null,
         company_name: createForm.company_name || null,
+        desktop_role: createForm.desktop_role || null,
       };
       const res = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setCreateError(data.error || "حدث خطأ"); return; }
       setShowCreateModal(false);
-      setCreateForm({ username: "", email: "", phone: "", password: "", full_name: "", account_type: "client", owner_id: "", company_name: "", plan: "monthly", subscription_days: 30, max_team_members: 0 });
+      setCreateForm({ username: "", email: "", phone: "", password: "", full_name: "", account_type: "client", owner_id: "", company_name: "", plan: "monthly", subscription_days: 30, max_team_members: 0, desktop_role: "" });
       fetchUsers();
     } catch { setCreateError("حدث خطأ"); }
   }
@@ -216,6 +217,12 @@ export default function AdminUsersPage() {
                 <div><label className="block text-xs text-gray-400 mb-1">النوع</label><select value={createForm.account_type} onChange={(e) => setCreateForm({ ...createForm, account_type: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="client">عميل رئيسي</option><option value="sub_user">مستخدم تابع</option></select></div>
                 <div><label className="block text-xs text-gray-400 mb-1">الخطة</label><select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm"><option value="monthly">شهري</option><option value="half_yearly">نصف سنوي</option><option value="yearly">سنوي</option><option value="lifetime">دائم</option></select></div>
                 <div><label className="block text-xs text-gray-400 mb-1">عدد الأيام</label><input type="number" value={createForm.subscription_days} onChange={(e) => setCreateForm({ ...createForm, subscription_days: parseInt(e.target.value) || 30 })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0A6CF1]" min={1} /></div>
+              </div>
+              <div><label className="block text-xs text-gray-400 mb-1">الدور في البرنامج (اختياري)</label>
+                <select value={createForm.desktop_role} onChange={(e) => setCreateForm({ ...createForm, desktop_role: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 text-sm">
+                  <option value="">غير محدد</option><option value="admin">مدير</option><option value="accountant">محاسب</option><option value="sales">مبيعات</option><option value="employee">موظف</option>
+                </select>
+                <p className="text-gray-500 text-xs mt-1">إذا تم تحديد دور، سيتمكن المستخدم من تسجيل الدخول إلى برنامج الديسكتوب</p>
               </div>
               {createForm.account_type === "client" && (
                 <div className="grid grid-cols-2 gap-4">

@@ -85,6 +85,7 @@ export const createUserSchema = z.object({
   company_name: z.string().max(100).optional().nullable(),
   notes: z.string().optional().default(""),
   tags: z.array(z.string()).optional().default([]),
+  desktop_role: z.enum(["admin", "accountant", "sales", "employee"]).optional().nullable(),
 });
 
 export const updateUserSchema = z.object({
@@ -98,6 +99,7 @@ export const updateUserSchema = z.object({
   tags: z.array(z.string()).optional(),
   company_name: z.string().max(100).optional().nullable(),
   max_team_members: z.number().int().min(0).optional(),
+  desktop_role: z.enum(["admin", "accountant", "sales", "employee"]).optional().nullable(),
 });
 
 export const updateSubscriptionSchema = z.object({
