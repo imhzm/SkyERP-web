@@ -13,9 +13,10 @@ export const metadata = createMetadata({
   ogImage: "/images/og/download-og.webp",
 });
 
-const VERSION = "2.3.13";
+const VERSION = "2.3.14";
 const FILE_SIZE = "24 MB";
-const DOWNLOAD_URL = "https://downloads.skywaveads.com/erp/latest";
+const GITHUB_RELEASE_URL = `https://github.com/imhzm/SkyWaveERB/releases/download/v${VERSION}/SkyWaveERP-Setup-${VERSION}.exe`;
+const SERVER_FALLBACK_URL = "https://downloads.skywaveads.com/erp/latest";
 const CHECKSUM_URL = "https://downloads.skywaveads.com/erp/version.json";
 
 const features = [
@@ -45,14 +46,21 @@ export default function DownloadPage() {
               الإصدار {VERSION} — {FILE_SIZE}
             </p>
             <a
-              href={DOWNLOAD_URL}
+              href={GITHUB_RELEASE_URL}
               className="inline-flex items-center gap-3 bg-gradient-to-r from-[#0A6CF1] to-[#8B2CF5] text-white rounded-2xl px-10 py-5 text-xl font-bold hover:shadow-[0_0_40px_rgba(10,108,241,0.5)] hover:scale-105 transition-all duration-300 mt-4"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <Download className="w-6 h-6" />
               تحميل البرنامج
             </a>
             <p className="text-white/30 text-sm mt-3">
               {FILE_SIZE} . متوافق مع Windows 10 و 11 — 64-bit
+            </p>
+            <p className="text-white/20 text-xs mt-2">
+              <a href={SERVER_FALLBACK_URL} className="hover:text-white/40 transition-colors" target="_blank" rel="noopener noreferrer">
+                رابط بديل (تحميل مباشر من السيرفر)
+              </a>
             </p>
           </div>
 
