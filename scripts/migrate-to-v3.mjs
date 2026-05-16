@@ -26,17 +26,17 @@ async function migrate() {
   const counterExists = await serialCol.findOne({ prefix: "SW-ERP" });
   if (!counterExists) {
     await serialCol.insertOne({ prefix: "SW-ERP", last_number: 0, created_at: new Date(), updated_at: new Date() });
-    console.log("✓ Created serial number counter");
+    console.log("Created serial number counter");
   } else {
-    console.log("✓ Serial number counter already exists");
+    console.log("Serial number counter already exists");
   }
 
   // Step 2: Add account_type, serial_number, owner_id, team_members to all users
   const users = await usersCol.find({}).toArray();
   let updated = 0;
   for (const user of users) {
-    const updateFields = {} as Record<string, any>;
-    const needsUpdate: string[] = [];
+    const updateFields = {};
+    const needsUpdate = [];
 
     // account_type
     if (!user.account_type) {
@@ -51,7 +51,7 @@ async function migrate() {
         { $inc: { last_number: 1 }, $set: { updated_at: new Date() } },
         { returnDocument: "after" }
       );
-      updateFields.serial_number = `SW-ERP-${String(counter.last_number).padStart(5, "0")}`;
+      updateFields.serial_number = "SW-ERP-" + String(counter.last_number).padStart(5, "0");
       needsUpdate.push("serial_number");
     }
 
@@ -108,7 +108,7 @@ async function migrate() {
       updated++;
     }
   }
-  console.log(`✓ Updated ${updated} users with new fields`);
+  console.log("Updated " + updated + " users with new fields");
 
   // Step 3: Update admin collection - convert super_admin to founder for the original admin
   const founderAdmin = await adminCol.findOne({ email: "admin@skywaveads.com" });
@@ -131,9 +131,9 @@ async function migrate() {
           },
         }
       );
-      console.log("✓ Updated admin@skywaveads.com → founder role with full permissions");
+      console.log("Updated admin@skywaveads.com to founder role with full permissions");
     } else {
-      console.log("✓ Founder already set");
+      console.log("Founder already set");
     }
 
     // Add permissions field to all other admins
@@ -154,7 +154,7 @@ async function migrate() {
       }
     );
     if (adminResult.modifiedCount > 0) {
-      console.log(`✓ Added permissions to ${adminResult.modifiedCount} admins`);
+      console.log("Added permissions to " + adminResult.modifiedCount + " admins");
     }
   }
 
@@ -164,7 +164,7 @@ async function migrate() {
     { $set: { actor_role: null } }
   );
   if (auditResult.modifiedCount > 0) {
-    console.log(`✓ Added actor_role to ${auditResult.modifiedCount} audit logs`);
+    console.log("Added actor_role to " + auditResult.modifiedCount + " audit logs");
   }
 
   // Step 5: Create indexes for new fields
@@ -172,12 +172,12 @@ async function migrate() {
     await usersCol.createIndex({ owner_id: 1 });
     await usersCol.createIndex({ serial_number: 1 }, { sparse: true });
     await usersCol.createIndex({ account_type: 1 });
-    console.log("✓ Created new indexes (owner_id, serial_number, account_type)");
+    console.log("Created new indexes (owner_id, serial_number, account_type)");
   } catch (err) {
-    console.log("⚠ Index creation:", err);
+    console.log("Index creation:", err);
   }
 
-  console.log("\n✓ Migration complete!");
+  console.log("\nMigration complete!");
   await mongoose.disconnect();
 }
 
