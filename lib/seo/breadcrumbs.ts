@@ -67,6 +67,7 @@ function segmentToLabel(segment: string): string {
     blog: "المدونة",
     demo: "عرض تجريبي",
     contact: "اتصل بنا",
+    download: "تحميل البرنامج",
     "privacy-policy": "سياسة الخصوصية",
     terms: "الشروط والأحكام",
   };

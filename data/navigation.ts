@@ -44,6 +44,7 @@ export const navigation: NavItem[] = [
   },
   { label: "المميزات", href: "/features" },
   { label: "الأسعار", href: "/pricing" },
+  { label: "تحميل البرنامج", href: "/download" },
   { label: "المدونة", href: "/blog" },
   { label: "اتصل بنا", href: "/contact" },
 ];
