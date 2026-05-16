@@ -1,5 +1,5 @@
 import { createMetadata } from "@/lib/seo/metadata";
-import { breadcrumbSchema, softwareAppSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, softwareSchema } from "@/lib/seo/schema";
 import { getBreadcrumbs } from "@/lib/seo/breadcrumbs";
 import JsonLd from "@/components/seo/JsonLd";
 import Breadcrumbs from "@/components/seo/Breadcrumbs";
@@ -29,7 +29,7 @@ export default function DownloadPage() {
   const breadcrumbs = getBreadcrumbs("/download");
   return (
     <>
-      <JsonLd data={softwareAppSchema()} />
+      <JsonLd data={softwareSchema()} />
       <JsonLd data={breadcrumbSchema(breadcrumbs)} />
       <div className="pt-28 pb-20">
         <Container>
