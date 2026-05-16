@@ -6,18 +6,24 @@ import Breadcrumbs from "@/components/seo/Breadcrumbs";
 import Container from "@/components/ui/Container";
 import { Download, Monitor, Zap, Shield, Cloud, RefreshCw } from "lucide-react";
 
+const VERSION_JSON_URL = "https://downloads.skywaveads.com/erp/version.json";
+
+async function getLatestVersion() {
+  try {
+    const res = await fetch(VERSION_JSON_URL, { next: { revalidate: 300 } });
+    if (!res.ok) throw new Error("Failed to fetch");
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export const metadata = createMetadata({
   title: "تحميل برنامج Sky ERP",
   description: "حمّل برنامج Sky ERP لإدارة شركتك. دعم المبيعات، الحسابات، المخزون، والموظفين. يدعم Windows 10/11، يعمل online/offline.",
   path: "/download",
   ogImage: "/images/og/download-og.webp",
 });
-
-const VERSION = "2.3.14";
-const FILE_SIZE = "24 MB";
-const GITHUB_RELEASE_URL = `https://github.com/imhzm/SkyWaveERB/releases/download/v${VERSION}/SkyWaveERP-Setup-${VERSION}.exe`;
-const SERVER_FALLBACK_URL = "https://downloads.skywaveads.com/erp/latest";
-const CHECKSUM_URL = "https://downloads.skywaveads.com/erp/version.json";
 
 const features = [
   { icon: Monitor, title: "سطح مكتب", desc: "تطبيق Windows أصلي — خفيف وسريع" },
@@ -26,8 +32,13 @@ const features = [
   { icon: Shield, title: "تحديثات تلقائية", desc: "آخر الإصدارات والتحسينات تصل إليك مباشرة" },
 ];
 
-export default function DownloadPage() {
+export default async function DownloadPage() {
   const breadcrumbs = getBreadcrumbs("/download");
+  const data = await getLatestVersion();
+  const version = data?.version ?? "2.3.15";
+  const downloadUrl = data?.url ?? "https://downloads.skywaveads.com/erp/latest";
+  const fallbackUrl = "https://downloads.skywaveads.com/erp/latest";
+  const checksumUrl = VERSION_JSON_URL;
   return (
     <>
       <JsonLd data={softwareSchema()} />
@@ -43,10 +54,10 @@ export default function DownloadPage() {
               برنامج Sky ERP
             </h1>
             <p className="text-lg text-white/50 mb-2">
-              الإصدار {VERSION} — {FILE_SIZE}
+              الإصدار {version}
             </p>
             <a
-              href={GITHUB_RELEASE_URL}
+              href={downloadUrl}
               className="inline-flex items-center gap-3 bg-gradient-to-r from-[#0A6CF1] to-[#8B2CF5] text-white rounded-2xl px-10 py-5 text-xl font-bold hover:shadow-[0_0_40px_rgba(10,108,241,0.5)] hover:scale-105 transition-all duration-300 mt-4"
               target="_blank"
               rel="noopener noreferrer"
@@ -55,10 +66,10 @@ export default function DownloadPage() {
               تحميل البرنامج
             </a>
             <p className="text-white/30 text-sm mt-3">
-              {FILE_SIZE} . متوافق مع Windows 10 و 11 — 64-bit
+              متوافق مع Windows 10 و 11 — 64-bit
             </p>
             <p className="text-white/20 text-xs mt-2">
-              <a href={SERVER_FALLBACK_URL} className="hover:text-white/40 transition-colors" target="_blank" rel="noopener noreferrer">
+              <a href={fallbackUrl} className="hover:text-white/40 transition-colors" target="_blank" rel="noopener noreferrer">
                 رابط بديل (تحميل مباشر من السيرفر)
               </a>
             </p>
@@ -91,7 +102,7 @@ export default function DownloadPage() {
                 <p className="text-white/50 text-sm">
                   رابط التحقق من التحديثات:{" "}
                   <code className="text-[#0A6CF1] bg-white/5 px-2 py-1 rounded text-xs">
-                    {CHECKSUM_URL}
+                    {checksumUrl}
                   </code>
                 </p>
               </div>
