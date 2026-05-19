@@ -190,7 +190,9 @@ export async function POST(request: NextRequest) {
       created_by_admin_id: payload.sub ? new mongoose.Types.ObjectId(payload.sub) : null,
       is_active: true,
       activation: {
-        status: effectiveAccountType === "sub_user" ? "active" : "active",
+        status: "active",
+        trial_start: null,
+        trial_end: null,
         max_devices: 1,
         subscription: {
           plan,

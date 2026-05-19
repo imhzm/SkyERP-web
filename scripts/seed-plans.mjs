@@ -80,11 +80,11 @@ async function seed() {
 
   for (const plan of plans) {
     await Plan.findOneAndUpdate({ key: plan.key }, { $set: plan }, { upsert: true });
-    console.log(`Upserted plan: ${plan.name}`);
+    console.log(`Upserted plan: ${plan.name} (${plan.key}) - ${plan.duration_days} days`);
   }
 
   await mongoose.disconnect();
-  console.log("Done");
+  console.log("Done - all plans seeded");
 }
 
 seed().catch(console.error);
