@@ -100,7 +100,7 @@ const UserSchema = new Schema<IUser>({
   sync_status: { type: String, default: "synced" },
   account_type: { type: String, enum: ["client", "sub_user"], default: "client" },
   owner_id: { type: Schema.Types.ObjectId, ref: "User", default: null },
-  serial_number: { type: String, default: null, sparse: true },
+  serial_number: { type: String, default: null },
   team_members: [{ type: Schema.Types.ObjectId, ref: "User" }],
   max_team_members: { type: Number, default: 0 },
   company_name: { type: String, default: null },
