@@ -13,7 +13,8 @@ export const emailSchema = z
   .string()
   .email("البريد الإلكتروني غير صالح")
   .max(255)
-  .transform((e) => e.toLowerCase().trim());
+  .toLowerCase()
+  .trim();
 
 export const usernameSchema = z
   .string()
