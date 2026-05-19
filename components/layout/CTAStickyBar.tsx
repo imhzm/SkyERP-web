@@ -41,9 +41,9 @@ export default function CTAStickyBar() {
             واتساب
           </Button>
         </a>
-        <Link href="/demo" className="flex-1">
+        <Link href="/register" className="flex-1">
           <Button size="sm" className="w-full">
-            Demo مجاني
+            التسجيل مجاناً
           </Button>
         </Link>
       </div>

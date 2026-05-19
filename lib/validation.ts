@@ -100,6 +100,7 @@ export const updateUserSchema = z.object({
   company_name: z.string().max(100).optional().nullable(),
   max_team_members: z.number().int().min(0).optional(),
   desktop_role: z.enum(["admin", "accountant", "sales", "employee"]).optional().nullable(),
+  custom_permissions: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export const updateSubscriptionSchema = z.object({
@@ -177,4 +178,47 @@ export const systemSettingsSchema = z.object({
   lockout_duration_minutes: z.number().int().min(1).max(1440).optional(),
   refresh_token_expiry_days: z.number().int().min(1).max(90).optional(),
   max_sessions_per_user: z.number().int().min(1).max(50).optional(),
+});
+
+export const createOrganizationSchema = z.object({
+  name: z.string().min(2).max(100),
+  slug: z.string().min(2).max(50).regex(/^[a-z0-9-]+$/).optional(),
+  owner_user_id: z.string().min(1, "owner_user_id مطلوب"),
+  company_name: z.string().max(100).optional(),
+  company_phone: z.string().optional(),
+  company_email: z.string().email().optional(),
+});
+
+export const updateOrganizationSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  is_active: z.boolean().optional(),
+  limits: z.object({
+    max_users: z.number().int().min(1).optional(),
+    max_devices: z.number().int().min(1).optional(),
+  }).optional(),
+});
+
+export const updateOrganizationSettingsSchema = z.object({
+  company_name: z.string().max(100).optional(),
+  company_tagline: z.string().max(200).optional(),
+  company_address: z.string().max(300).optional(),
+  company_phone: z.string().max(30).optional(),
+  company_email: z.string().email().optional(),
+  company_logo_data: z.string().optional(),
+  bank_name: z.string().max(100).optional(),
+  bank_account: z.string().max(50).optional(),
+  vodafone_cash: z.string().max(30).optional(),
+  default_tax_rate: z.number().min(0).max(100).optional(),
+  default_notes: z.string().max(1000).optional(),
+  print_client_logo_width_px: z.number().int().min(50).max(500).optional(),
+  print_client_logo_max_height_px: z.number().int().min(20).max(200).optional(),
+  hr_payroll_days_divisor: z.number().min(1).max(31).optional(),
+  hr_standard_work_hours_per_day: z.number().min(1).max(24).optional(),
+  hr_overtime_rate_multiplier: z.number().min(1).max(5).optional(),
+  hr_workday_start_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  hr_workday_end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  hr_late_grace_minutes: z.number().int().min(0).max(120).optional(),
+  hr_early_leave_grace_minutes: z.number().int().min(0).max(120).optional(),
+  hr_weekend_days: z.array(z.number().int().min(0).max(6)).optional(),
+  hr_missing_attendance_counts_as_absence: z.boolean().optional(),
 });

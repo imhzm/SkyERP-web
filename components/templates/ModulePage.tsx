@@ -52,7 +52,7 @@ export function ModulePage({
             <Badge variant="primary" className="mb-4">{mod?.name}</Badge>
             <SectionHeading title={hero} subtitle={mod?.description} align="right" />
             <div className="flex flex-wrap gap-3 mt-8">
-              <a href="/demo"><Button>احجز Demo مجاني</Button></a>
+              <a href="/register"><Button>التسجيل مجاناً</Button></a>
               <a href={`/apps/${moduleId}`}><Button variant="secondary">شاهد المميزات</Button></a>
             </div>
           </div>
@@ -186,13 +186,13 @@ export function ModulePage({
           {/* 9. CTA */}
           <div className="text-center glass rounded-2xl p-12">
             <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
-              جاهز تجرب {mod?.name}؟
+              جاهز تبدأ مع {mod?.name}؟
             </h3>
             <p className="text-white/60 mb-8 max-w-xl mx-auto">
-              احجز Demo مجاني وشوف بنفسك كيف {mod?.name} في Sky ERP يقدر يغير طريقة إدارة شركتك
+              سجل مجاناً وابدأ استخدام {mod?.name} في Sky ERP خلال دقائق
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="/demo"><Button size="lg">احجز Demo مجاني</Button></a>
+              <a href="/register"><Button size="lg">التسجيل مجاناً</Button></a>
               <Link href="/apps">
                 <Button variant="outline" size="lg" className="gap-2">
                   استعرض كل الموديولات <ArrowLeft className="w-4 h-4" />

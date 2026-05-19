@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import mongoose from "mongoose";
 import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
@@ -7,14 +7,14 @@ import { Invoice } from "@/models/billing/Invoice";
 import { Transaction } from "@/models/billing/Transaction";
 import { AuditLog } from "@/models/AuditLog";
 import { updateUserSchema } from "@/lib/validation";
-import { writeAuditLog } from "@/lib/audit";
+import { writeAuditLog, toAuditRole } from "@/lib/audit";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù ØµØ±Ø­" }, { status: 401 });
 
   const { id } = await params;
 
@@ -22,7 +22,7 @@ export async function GET(
     await connectDB();
     const user = await User.findById(id).select("-password_hash -refresh_tokens");
     if (!user || user.is_deleted) {
-      return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
+      return Response.json({ error: "Ø§ÙÙ Ø³ØªØ®Ø¯Ù ØºÙŠØ± Ù ÙÙØ¬ÙØ¯" }, { status: 404 });
     }
 
     return Response.json({
@@ -44,14 +44,10 @@ export async function GET(
         created_by_admin_id: user.created_by_admin_id?.toString() || null,
         is_active: user.is_active,
         email_verified: user.email_verified,
-        hardware_hash: user.hardware_hash,
         hardware_first_login: user.hardware_first_login,
-        hardware_info: user.hardware_info,
         activation: user.activation,
         failed_login_attempts: user.failed_login_attempts,
         locked_until: user.locked_until,
-        sessions: user.sessions?.slice(-10) || [],
-        audit_log: user.audit_log?.slice(-50) || [],
         created_at: user.created_at,
         last_login: user.last_login,
         last_modified: user.last_modified,
@@ -62,7 +58,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Admin get user error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }
 
@@ -71,12 +67,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù ØµØ±Ø­" }, { status: 401 });
 
   const { id } = await params;
 
   let body: unknown;
-  try { body = await request.json(); } catch { return Response.json({ error: "بيانات غير صالحة" }, { status: 400 }); }
+  try { body = await request.json(); } catch { return Response.json({ error: "Ø¨ÙØ§ÙØ§Øª ØºÙŠØ± ØµØ§ÙØØ©" }, { status: 400 }); }
 
   const parsed = updateUserSchema.safeParse(body);
   if (!parsed.success) {
@@ -87,7 +83,7 @@ export async function PATCH(
     await connectDB();
     const user = await User.findById(id);
     if (!user || user.is_deleted) {
-      return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
+      return Response.json({ error: "Ø§ÙÙ Ø³ØªØ®Ø¯Ù ØºÙŠØ± Ù ÙÙØ¬ÙØ¯" }, { status: 404 });
     }
 
     const { activation_status, ...fields } = parsed.data;
@@ -103,6 +99,7 @@ export async function PATCH(
     if (fields.company_name !== undefined) update.company_name = fields.company_name;
     if (fields.max_team_members !== undefined) update.max_team_members = fields.max_team_members;
     if (fields.desktop_role !== undefined) update.desktop_role = fields.desktop_role || null;
+    if (fields.custom_permissions !== undefined) update.custom_permissions = fields.custom_permissions;
 
     if (activation_status) {
       update["activation.status"] = activation_status;
@@ -117,15 +114,16 @@ export async function PATCH(
       target_username: user.username,
       performed_by: payload.email,
       performed_by_type: "admin",
-      actor_role: (payload.role as any) || "admin",
+      actor_role: toAuditRole(payload.role),
+      organization_id: payload.organization_id,
       details: { changes: parsed.data },
       success: true,
     });
 
-    return Response.json({ message: "تم تحديث المستخدم بنجاح" });
+    return Response.json({ message: "ØªÙ ØªØ­Ø¯ÙŠØ« Ø§ÙÙ Ø³ØªØ®Ø¯Ù Ø¨ÙØ¬Ø§Ø" });
   } catch (error) {
     console.error("Admin update user error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }
 
@@ -134,7 +132,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù ØµØ±Ø­" }, { status: 401 });
 
   const { id } = await params;
 
@@ -142,13 +140,12 @@ export async function DELETE(
     await connectDB();
     const user = await User.findById(id);
     if (!user || user.is_deleted) {
-      return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
+      return Response.json({ error: "Ø§ÙÙ Ø³ØªØ®Ø¯Ù ØºÙŠØ± Ù ÙÙØ¬ÙØ¯" }, { status: 404 });
     }
 
     const userId = user._id;
     const now = new Date();
 
-    // 1. حذف الحسابات التابعة (sub-accounts) المرتبطة بهذا المستخدم
     const subUsers = await User.find({ owner_id: userId, is_deleted: { $ne: true } });
     const subUserIds = subUsers.map((u) => u._id);
     if (subUserIds.length > 0) {
@@ -156,18 +153,16 @@ export async function DELETE(
         { _id: { $in: subUserIds } },
         { $set: { is_deleted: true, is_active: false, last_modified: now } }
       );
-      // حذف فواتير ومعاملات الحسابات التابعة
       await Invoice.updateMany(
         { user_id: { $in: subUserIds } },
-        { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+        { $set: { status: "cancelled", notes: "ØªÙ Ø­Ø°Ù Ø§ÙÙ Ø³ØªØ®Ø¯Ù " } }
       );
       await Transaction.updateMany(
         { user_id: { $in: subUserIds } },
-        { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+        { $set: { status: "cancelled", notes: "ØªÙ Ø­Ø°Ù Ø§ÙÙ Ø³ØªØ®Ø¯Ù " } }
       );
     }
 
-    // 2. إزالة هذا المستخدم من قائمة team_members في حساب المدير (الوالد)
     if (user.owner_id) {
       await User.updateOne(
         { _id: user.owner_id },
@@ -175,28 +170,23 @@ export async function DELETE(
       );
     }
 
-    // 3. إزالة هذا المستخدم من team_members لأي مستخدم آخر (لو هو parent)
     await User.updateMany(
       { team_members: userId },
       { $pull: { team_members: userId } }
     );
 
-    // 4. إلغاء فواتير المستخدم
     await Invoice.updateMany(
       { user_id: userId },
-      { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+      { $set: { status: "cancelled", notes: "ØªÙ Ø­Ø°Ù Ø§ÙÙ Ø³ØªØ®Ø¯Ù " } }
     );
 
-    // 5. إلغاء معاملات المستخدم
     await Transaction.updateMany(
       { user_id: userId },
-      { $set: { status: "cancelled", notes: "تم حذف المستخدم" } }
+      { $set: { status: "cancelled", notes: "ØªÙ Ø­Ø°Ù Ø§ÙÙ Ø³ØªØ®Ø¯Ù " } }
     );
 
-    // 6. حذف سجل النشاطات الخاص بالمستخدم
     await AuditLog.deleteMany({ target_id: id });
 
-    // 7. حذف المستخدم نهائياً (hard delete)
     await User.deleteOne({ _id: userId });
 
     await writeAuditLog({
@@ -206,7 +196,8 @@ export async function DELETE(
       target_username: user.username,
       performed_by: payload.email,
       performed_by_type: "admin",
-      actor_role: (payload.role as any) || "admin",
+      actor_role: toAuditRole(payload.role),
+      organization_id: payload.organization_id,
       details: {
         hard_delete: true,
         deleted_sub_accounts: subUserIds.length,
@@ -217,11 +208,11 @@ export async function DELETE(
     });
 
     return Response.json({
-      message: "تم حذف المستخدم نهائياً مع كل البيانات المرتبطة به",
+      message: "ØªÙ Ø­Ø°Ù Ø§ÙÙ Ø³ØªØ®Ø¯Ù ÙÙØ§Ø¦ÙØ§Ù Ù Ø¹ ÙÙ Ø§ÙØ¨ÙØ§ÙØ§Øª Ø§ÙÙ Ø±ØªØ¨Ø·Ø© Ø¨Ù",
       deleted_sub_accounts: subUserIds.length,
     });
   } catch (error) {
     console.error("Admin delete user error:", error);
-    return Response.json({ error: "حدث خطأ أثناء حذف المستخدم" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«ÙØ§Ø¡ Ø­Ø°Ù Ø§ÙÙ Ø³ØªØ®Ø¯Ù " }, { status: 500 });
   }
 }

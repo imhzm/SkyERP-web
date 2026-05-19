@@ -6,6 +6,7 @@ import { Admin } from "@/models/Admin";
 import { hash } from "bcryptjs";
 import { createAdminSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const querySchema = z.object({
@@ -76,6 +77,9 @@ export async function POST(request: NextRequest) {
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
   const ip = request.headers.get("x-forwarded-for") || "unknown";
 
+  const rl = await checkRateLimit(`admin-create:${ip}`, "api:admin-mutate");
+  if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
+
   try {
     await connectDB();
     const body = await request.json();
@@ -116,6 +120,7 @@ export async function POST(request: NextRequest) {
       performed_by: payload.email,
       performed_by_type: "admin",
       actor_role: "founder",
+      organization_id: payload.organization_id,
       ip_address: ip,
       details: { role: parsed.data.role },
       success: true,

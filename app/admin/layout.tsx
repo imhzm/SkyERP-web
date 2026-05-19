@@ -26,6 +26,7 @@ export const useAdmin = () => useContext(AdminCtx);
 const allNavItems = [
   { href: "/admin/dashboard", label: "لوحة التحكم", icon: "📊", permission: null as string | null },
   { href: "/admin/users", label: "المستخدمين", icon: "👥", permission: "can_manage_users" },
+  { href: "/admin/organizations", label: "المنظمات", icon: "🏢", permission: "can_manage_users" },
   { href: "/admin/admins", label: "المشرفين", icon: "🔐", permission: "can_manage_admins" },
   { href: "/admin/billing", label: "الفواتير", icon: "💰", permission: "can_manage_billing" },
   { href: "/admin/billing/plans", label: "الخطط", icon: "📋", permission: "can_manage_billing" },

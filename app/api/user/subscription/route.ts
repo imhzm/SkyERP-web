@@ -1,8 +1,24 @@
 import { NextRequest } from "next/server";
+import mongoose from "mongoose";
 import { getTokenFromRequest } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { checkCascadingExpiry, syncTeamSubscriptionStatus } from "@/lib/subscription";
+
+interface SubUserResult {
+  _id: mongoose.Types.ObjectId;
+  is_deleted: boolean;
+  account_type: string;
+  owner_id?: mongoose.Types.ObjectId;
+  username: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  activation: Record<string, unknown> | null;
+  team_members?: mongoose.Types.ObjectId[];
+  max_team_members?: number;
+  serial_number?: string;
+}
 
 export async function GET(request: NextRequest) {
   const payload = getTokenFromRequest(request);
@@ -14,25 +30,23 @@ export async function GET(request: NextRequest) {
     await connectDB();
     const user = await User.findById(payload.sub)
       .select("username email role account_type is_active activation owner_id team_members max_team_members serial_number")
-      .lean();
+      .lean<SubUserResult | null>();
 
-    if (!user || (user as any).is_deleted) {
+    if (!user || user.is_deleted) {
       return Response.json({ error: "غير موجود" }, { status: 404 });
     }
-
-    const u = user as any;
     const now = new Date();
-    const activation = u.activation || {};
-    const sub = activation.subscription || {};
+    const activation: Record<string, unknown> = user.activation || {};
+    const sub: Record<string, unknown> = (activation.subscription as Record<string, unknown>) || {};
 
-    const status = activation.status || "trial";
-    const endDate = sub.end_date ? new Date(sub.end_date) : null;
-    const trialEnd = activation.trial_end ? new Date(activation.trial_end) : null;
+    const status = (activation.status as string) || "trial";
+    const endDate = (sub.end_date as string) ? new Date(sub.end_date as string) : null;
+    const trialEnd = (activation.trial_end as string) ? new Date(activation.trial_end as string) : null;
 
     let computedStatus = status;
     if (status === "trial" && trialEnd && trialEnd < now) computedStatus = "expired";
     else if (status === "active" && endDate && endDate < now) {
-      const graceEnd = sub.grace_period_end ? new Date(sub.grace_period_end) : null;
+      const graceEnd = (sub.grace_period_end as string) ? new Date(sub.grace_period_end as string) : null;
       computedStatus = graceEnd && graceEnd > now ? "grace" : "expired";
     }
 
@@ -40,33 +54,31 @@ export async function GET(request: NextRequest) {
 
     // For sub_users, check owner status
     let cascading = null;
-    if (u.account_type === "sub_user" && u.owner_id) {
-      const check = await checkCascadingExpiry(u._id.toString());
+    if (user.account_type === "sub_user" && user.owner_id) {
+      const check = await checkCascadingExpiry(user._id.toString());
       cascading = { blocked: check.blocked, reason: check.reason };
     }
 
     return Response.json({
       subscription: {
         status: computedStatus,
-        raw_status: status,
-        plan: sub.plan || "trial",
-        start_date: sub.start_date || null,
-        end_date: sub.end_date || null,
+        plan: (sub.plan as string) || "trial",
+        start_date: (sub.start_date as string) || null,
+        end_date: (sub.end_date as string) || null,
         days_left: daysLeft,
-        grace_period_end: sub.grace_period_end || null,
-        max_devices: activation.max_devices || 1,
-        auto_renew: sub.auto_renew || false,
+        grace_period_end: (sub.grace_period_end as string) || null,
+        max_devices: (activation.max_devices as number) || 1,
+        auto_renew: (sub.auto_renew as boolean) || false,
       },
       account: {
-        type: u.account_type || "client",
-        serial_number: u.serial_number || null,
-        is_active: u.is_active,
+        type: user.account_type || "client",
+        is_active: user.is_active,
         is_deleted: false,
       },
-      team: u.account_type === "client" ? {
-        used: (u.team_members || []).length,
-        max: u.max_team_members || 0,
-        remaining: Math.max(0, (u.max_team_members || 0) - (u.team_members || []).length),
+      team: user.account_type === "client" ? {
+        used: (user.team_members || []).length,
+        max: user.max_team_members || 0,
+        remaining: Math.max(0, (user.max_team_members || 0) - (user.team_members || []).length),
       } : null,
       cascading,
       server_time: now.toISOString(),

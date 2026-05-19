@@ -14,7 +14,7 @@ const industries = [
 
 const pages = [
   "features", "apps", "pricing", "implementation", "integrations",
-  "security", "about", "blog", "demo", "contact",
+  "security", "about", "blog", "contact",
   "privacy-policy", "terms",
 ];
 

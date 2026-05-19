@@ -78,6 +78,7 @@ export interface IUser extends Document {
   linked_employee_code: string | null;
   custom_permissions: Record<string, any> | null;
   desktop_role: "admin" | "accountant" | "sales" | "employee" | null;
+  organization_id: mongoose.Types.ObjectId | null;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -141,6 +142,7 @@ const UserSchema = new Schema<IUser>({
   linked_employee_code: { type: String, default: null },
   custom_permissions: { type: Schema.Types.Mixed, default: null },
   desktop_role: { type: String, enum: ["admin", "accountant", "sales", "employee", null], default: null },
+  organization_id: { type: Schema.Types.ObjectId, ref: "Organization", default: null, index: true },
 });
 
 UserSchema.index({ "activation.status": 1 });
@@ -149,5 +151,6 @@ UserSchema.index({ is_deleted: 1 });
 UserSchema.index({ owner_id: 1 });
 UserSchema.index({ serial_number: 1 }, { sparse: true });
 UserSchema.index({ account_type: 1 });
+UserSchema.index({ password_reset_token: 1 }, { sparse: true });
 
 export const User = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

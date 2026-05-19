@@ -19,6 +19,7 @@ interface Detail {
   sessions: any[]; audit_log: any[];
   created_at: string; last_login: string | null; last_modified: string;
   desktop_role: string | null;
+  custom_permissions: Record<string, any> | null;
 }
 
 const actionLabels: Record<string, string> = {
@@ -45,8 +46,28 @@ export default function AdminUserDetailPage() {
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [notesForm, setNotesForm] = useState("");
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [permData, setPermData] = useState<{ desktop_role: string | null; custom_permissions: Record<string, any> | null; role_defaults: any; all_tabs: string[]; all_actions: string[]; all_features: string[] } | null>(null);
+  const [permForm, setPermForm] = useState<{ tabs: string[]; actions: string[]; features: string[] }>({ tabs: [], actions: [], features: [] });
 
   useEffect(() => { document.title = "تفاصيل المستخدم - Sky ERP"; fetchUser(); fetchInvoices(); }, [userId]);
+
+  async function fetchPermissions() {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/permissions`);
+      if (res.ok) {
+        const data = await res.json();
+        setPermData(data);
+        const cp = data.custom_permissions;
+        setPermForm({
+          tabs: cp?.tabs || [],
+          actions: cp?.actions || [],
+          features: cp?.features || [],
+        });
+      } else {
+        console.error("fetchPermissions failed:", res.status, res.statusText);
+      }
+    } catch (e) { console.error("fetchPermissions error:", e); }
+  }
 
   async function fetchUser() {
     try {
@@ -146,8 +167,9 @@ export default function AdminUserDetailPage() {
             { k: "billing", l: "الفواتير" },
             { k: "sessions", l: "الجلسات" },
             { k: "notes", l: "ملاحظات" },
+            { k: "permissions", l: "الصلاحيات" },
           ].map((t) => (
-            <button key={t.k} onClick={() => { setTab(t.k); if (t.k === "team") fetchTeamMembers(); }} className={`flex-1 py-2 text-sm rounded-md transition cursor-pointer whitespace-nowrap ${tab === t.k ? "bg-[#0A6CF1] text-white" : "text-gray-400 hover:text-white"}`}>{t.l}</button>
+            <button key={t.k} onClick={() => { setTab(t.k); if (t.k === "team") fetchTeamMembers(); if (t.k === "permissions") fetchPermissions(); }} className={`flex-1 py-2 text-sm rounded-md transition cursor-pointer whitespace-nowrap ${tab === t.k ? "bg-[#0A6CF1] text-white" : "text-gray-400 hover:text-white"}`}>{t.l}</button>
           ))}
         </div>
 
@@ -310,6 +332,61 @@ export default function AdminUserDetailPage() {
                   <div className="text-left"><p className="text-xs text-gray-500">آخر نشاط: {s.last_active ? new Date(s.last_active).toLocaleString("ar-EG") : "—"}</p></div>
                 </div>
               ))}</div>
+            )}
+          </div>
+        )}
+
+        {/* Permissions */}
+        {tab === "permissions" && (
+          <div className="bg-white/5 rounded-xl border border-white/10 p-6">
+            <h3 className="text-sm font-medium text-white mb-4">صلاحيات البرنامج</h3>
+            {!permData ? (
+              <p className="text-gray-500 text-sm text-center py-6">جاري التحميل...</p>
+            ) : (
+              <div className="space-y-6">
+                {permData.desktop_role === "admin" && (
+                  <p className="text-yellow-400 text-sm">صلاحيات مدير النظام (admin) كاملة دائماً ولا يمكن تعديلها.</p>
+                )}
+                {/* التابات */}
+                <div><h4 className="text-xs text-gray-400 mb-2 font-medium">التابات المسموحة</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {permData.all_tabs.map((t) => (
+                      <label key={t} className={`flex items-center gap-2 text-sm ${permData.desktop_role === "admin" ? "text-gray-500" : "text-gray-300 cursor-pointer"}`}>
+                        <input type="checkbox" checked={permForm.tabs.includes(t)} onChange={() => setPermForm((prev) => ({ ...prev, tabs: prev.tabs.includes(t) ? prev.tabs.filter((x) => x !== t) : [...prev.tabs, t] }))} disabled={permData.desktop_role === "admin"} className="rounded border-white/20 bg-white/5" />
+                        {t}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {/* الإجراءات */}
+                <div><h4 className="text-xs text-gray-400 mb-2 font-medium">الإجراءات المسموحة</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {permData.all_actions.map((a) => (
+                      <label key={a} className={`flex items-center gap-2 text-sm ${permData.desktop_role === "admin" ? "text-gray-500" : "text-gray-300 cursor-pointer"}`}>
+                        <input type="checkbox" checked={permForm.actions.includes(a)} onChange={() => setPermForm((prev) => ({ ...prev, actions: prev.actions.includes(a) ? prev.actions.filter((x) => x !== a) : [...prev.actions, a] }))} disabled={permData.desktop_role === "admin"} className="rounded border-white/20 bg-white/5" />
+                        {a}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {/* الميزات */}
+                <div><h4 className="text-xs text-gray-400 mb-2 font-medium">الميزات الخاصة</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {permData.all_features.map((f) => (
+                      <label key={f} className={`flex items-center gap-2 text-sm ${permData.desktop_role === "admin" ? "text-gray-500" : "text-gray-300 cursor-pointer"}`}>
+                        <input type="checkbox" checked={permForm.features.includes(f)} onChange={() => setPermForm((prev) => ({ ...prev, features: prev.features.includes(f) ? prev.features.filter((x) => x !== f) : [...prev.features, f] }))} disabled={permData.desktop_role === "admin"} className="rounded border-white/20 bg-white/5" />
+                        {f}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {permData.desktop_role !== "admin" && (
+                  <button onClick={async () => {
+                    await saveField(`/api/admin/users/${userId}/permissions`, { custom_permissions: permForm });
+                  }} className="px-4 py-2 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition cursor-pointer">حفظ الصلاحيات</button>
+                )}
+                <p className="text-xs text-gray-500">ملاحظة: صلاحيات مدير النظام (admin) كاملة دائماً ولا تتأثر بهذه الإعدادات.</p>
+              </div>
             )}
           </div>
         )}

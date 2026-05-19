@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
     }
 
-    const rl = checkRateLimit(`admin:${admin._id}`, "auth:admin-login");
+    const rl = await checkRateLimit(`admin:${admin._id}`, "auth:admin-login");
     if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
 
     if (admin.locked_until && new Date() < admin.locked_until) {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       { _id: admin._id },
       { $set: { login_attempts: 0, locked_until: null, last_login: new Date() } }
     );
-    resetRateLimit(`admin:${admin._id}`);
+    await resetRateLimit(`admin:${admin._id}`);
 
     const accessToken = signAccessToken({ sub: admin._id.toString(), type: "admin", role: admin.role, email: admin.email });
     const refreshToken = signRefreshToken({ sub: admin._id.toString(), type: "admin" });

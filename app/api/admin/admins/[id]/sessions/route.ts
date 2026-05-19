@@ -16,7 +16,10 @@ export async function GET(
     await connectDB();
     const admin = await Admin.findById(id).select("sessions refresh_tokens");
     if (!admin) return Response.json({ error: "المشرف غير موجود" }, { status: 404 });
-    return Response.json({ sessions: [], refresh_tokens: admin.refresh_tokens || [] });
+    const safeRefreshTokens = (admin.refresh_tokens || []).map((t: { device_info: string; ip: string; created_at: Date; expires_at: Date; }) => ({
+      device_info: t.device_info, ip: t.ip, created_at: t.created_at, expires_at: t.expires_at,
+    }));
+    return Response.json({ sessions: [], refresh_tokens: safeRefreshTokens });
   } catch (error) {
     console.error("Admin sessions error:", error);
     return Response.json({ error: "حدث خطأ" }, { status: 500 });
@@ -47,6 +50,7 @@ export async function DELETE(
       performed_by: payload.email,
       performed_by_type: "admin",
       actor_role: "founder",
+      organization_id: payload.organization_id,
       ip_address: ip,
       success: true,
       details: { force_all: true },

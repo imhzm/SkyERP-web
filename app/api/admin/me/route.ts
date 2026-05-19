@@ -58,6 +58,7 @@ export async function PATCH(request: NextRequest) {
         target_id: payload.sub,
         performed_by: payload.email || "admin",
         performed_by_type: "admin",
+        organization_id: payload.organization_id,
         ip_address: request.headers.get("x-forwarded-for") || "unknown",
         success: true,
       });
@@ -65,10 +66,9 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ message: "تم تغيير كلمة المرور" });
     }
 
-    // Profile update
-    const updates: Record<string, any> = {};
+    // Profile update — role cannot be self-changed (privilege escalation)
+    const updates: Record<string, unknown> = {};
     if (body.full_name !== undefined) updates.full_name = body.full_name;
-    if (body.role) updates.role = body.role;
 
     const admin = await Admin.findByIdAndUpdate(payload.sub, { $set: updates }, { new: true }).select("-password_hash -refresh_tokens");
     if (!admin) return Response.json({ error: "غير موجود" }, { status: 404 });

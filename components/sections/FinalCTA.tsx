@@ -19,11 +19,11 @@ export default function FinalCTA() {
             جاهز تشغل شركتك بنظام؟
           </h2>
           <p className="text-lg text-white/60 mb-8 max-w-2xl mx-auto">
-            احجز Demo مجاني وشوف كيف Sky ERP يقدر يغير طريقة إدارة شركتك
+            سجل مجاناً وابدأ إدارة شركتك مع Sky ERP في دقائق
           </p>
-          <Link href="/demo">
+          <Link href="/register">
             <Button size="lg" className="text-base">
-              احجز Demo مجاني الآن
+              التسجيل مجاناً
             </Button>
           </Link>
         </motion.div>

@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { updateTeamSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { isMultiTenant } from "@/lib/organization";
 
 export async function PATCH(
   request: NextRequest,
@@ -35,13 +36,17 @@ export async function PATCH(
       return Response.json({ error: "هذا المستخدم ليس من فريقك" }, { status: 403 });
     }
 
+    if (isMultiTenant() && owner.organization_id && member.organization_id?.toString() !== owner.organization_id.toString()) {
+      return Response.json({ error: "هذا المستخدم ليس من منظمتك" }, { status: 403 });
+    }
+
     const body = await request.json();
     const parsed = updateTeamSchema.safeParse(body);
     if (!parsed.success) {
       return Response.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const update: Record<string, any> = { last_modified: new Date() };
+    const update: Record<string, unknown> = { last_modified: new Date() };
     if (parsed.data.full_name !== undefined) update.full_name = parsed.data.full_name;
     if (parsed.data.phone !== undefined) update.phone = parsed.data.phone || null;
     if (parsed.data.is_active !== undefined) update.is_active = parsed.data.is_active;
@@ -83,6 +88,10 @@ export async function DELETE(
 
     if (member.owner_id?.toString() !== owner._id.toString()) {
       return Response.json({ error: "هذا المستخدم ليس من فريقك" }, { status: 403 });
+    }
+
+    if (isMultiTenant() && owner.organization_id && member.organization_id?.toString() !== owner.organization_id.toString()) {
+      return Response.json({ error: "هذا المستخدم ليس من منظمتك" }, { status: 403 });
     }
 
     await User.updateOne(

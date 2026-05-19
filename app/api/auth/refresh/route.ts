@@ -3,9 +3,14 @@ import { verifyToken, signAccessToken, signRefreshToken, hashToken, setAuthCooki
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { Admin } from "@/models/Admin";
+import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rl = await checkRateLimit(`refresh:${ip}`, "auth:refresh");
+    if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
+
     const refreshToken = request.cookies.get("refresh_token")?.value;
     if (!refreshToken) {
       return Response.json({ error: "غير مصرح" }, { status: 401 });
@@ -16,6 +21,8 @@ export async function POST(request: NextRequest) {
       await clearAuthCookies();
       return Response.json({ error: "انتهت الجلسة" }, { status: 401 });
     }
+
+    const userAgent = request.headers.get("user-agent") || "";
 
     await connectDB();
     const tokenHash = hashToken(refreshToken);
@@ -32,7 +39,7 @@ export async function POST(request: NextRequest) {
       }
 
       const newAccess = signAccessToken({ sub: payload.sub, type: "admin", role: admin.role, email: admin.email });
-      const newRefresh = signRefreshToken({ sub: payload.sub, type: "admin" });
+      const newRefresh = signRefreshToken({ sub: payload.sub, type: "admin", email: admin.email });
       const newHash = hashToken(newRefresh);
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -40,7 +47,7 @@ export async function POST(request: NextRequest) {
         { _id: payload.sub },
         {
           $pull: { refresh_tokens: { token_hash: tokenHash } },
-          $push: { refresh_tokens: { token_hash: newHash, device_info: "", ip: "", created_at: new Date(), expires_at: expiresAt } },
+          $push: { refresh_tokens: { token_hash: newHash, device_info: userAgent.slice(0, 200), ip, created_at: new Date(), expires_at: expiresAt } },
         }
       );
 
@@ -59,8 +66,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "غير مصرح" }, { status: 401 });
     }
 
-    const newAccess = signAccessToken({ sub: payload.sub, type: "user", role: user.role, email: user.email });
-    const newRefresh = signRefreshToken({ sub: payload.sub, type: "user" });
+    const newAccess = signAccessToken({
+      sub: payload.sub,
+      type: "user",
+      role: user.role,
+      email: user.email,
+      organization_id: user.organization_id?.toString() || undefined,
+    });
+    const newRefresh = signRefreshToken({
+      sub: payload.sub,
+      type: "user",
+      email: user.email,
+      organization_id: user.organization_id?.toString() || undefined,
+    });
     const newHash = hashToken(newRefresh);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -68,7 +86,7 @@ export async function POST(request: NextRequest) {
       { _id: payload.sub },
       {
         $pull: { refresh_tokens: { token_hash: tokenHash } },
-        $push: { refresh_tokens: { token_hash: newHash, device_info: "", ip: "", created_at: new Date(), expires_at: expiresAt } },
+        $push: { refresh_tokens: { token_hash: newHash, device_info: userAgent.slice(0, 200), ip, created_at: new Date(), expires_at: expiresAt } },
       }
     );
 

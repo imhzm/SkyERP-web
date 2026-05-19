@@ -2,10 +2,13 @@ import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { Organization } from "@/models/Organization";
 import { verifyPassword, signAccessToken, signRefreshToken, hashToken, setAuthCookies } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { checkRateLimit, resetRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 import { checkCascadingExpiry } from "@/lib/subscription";
+import { isMultiTenant } from "@/lib/organization";
+import { writeAuditLog, toAuditRole } from "@/lib/audit";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
@@ -27,9 +30,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { email, password } = parsed.data;
+  const rateLimitKey = `login:${email.toLowerCase()}:${ip}`;
 
   try {
     await connectDB();
+
+    const rl = await checkRateLimit(rateLimitKey, "auth:login");
+    if (!rl.allowed) {
+      return getRateLimitResponse(rl.resetIn);
+    }
 
     const user = await User.findOne({ email: email.toLowerCase(), is_deleted: { $ne: true } });
     if (!user) {
@@ -37,11 +46,6 @@ export async function POST(request: NextRequest) {
         { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" },
         { status: 401 }
       );
-    }
-
-    const rl = checkRateLimit(`login:${user._id}`, "auth:login");
-    if (!rl.allowed) {
-      return getRateLimitResponse(rl.resetIn);
     }
 
     if (user.locked_until && new Date() < user.locked_until) {
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     if (!verifyPassword(password, user.password_hash)) {
       const attempts = (user.failed_login_attempts || 0) + 1;
-      const update: Record<string, any> = { failed_login_attempts: attempts };
+      const update: Record<string, unknown> = { failed_login_attempts: attempts };
 
       if (attempts >= 5) {
         update.locked_until = new Date(Date.now() + 30 * 60 * 1000);
@@ -90,19 +94,21 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    resetRateLimit(`login:${user._id}`);
+    await resetRateLimit(rateLimitKey);
 
     const accessToken = signAccessToken({
       sub: user._id.toString(),
       type: "user",
       role: user.role,
       email: user.email,
+      organization_id: user.organization_id?.toString() || undefined,
     });
 
     const refreshToken = signRefreshToken({
       sub: user._id.toString(),
       type: "user",
       email: user.email,
+      organization_id: user.organization_id?.toString() || undefined,
     });
 
     const refreshTokenHash = hashToken(refreshToken);
@@ -144,19 +150,48 @@ export async function POST(request: NextRequest) {
     const sub = activation.subscription || {};
     const status = activation.status || "trial";
 
-    let warning: string | null = null;
+    const warnings: string[] = [];
+    if (!user.email_verified) {
+      warnings.push("بريدك الإلكتروني غير مؤكّد. يرجى التحقق من بريدك لتفعيل الحساب.");
+    }
     if (sub.end_date && new Date(sub.end_date) < now) {
       if (sub.grace_period_end && new Date(sub.grace_period_end) > now) {
         const remaining = Math.ceil((new Date(sub.grace_period_end).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-        warning = `انتهت صلاحية اشتراكك، متبقي ${remaining} يوم سماح`;
+        warnings.push(`انتهت صلاحية اشتراكك، متبقي ${remaining} يوم سماح`);
       } else {
-        warning = "انتهت صلاحية اشتراكك";
+        warnings.push("انتهت صلاحية اشتراكك");
       }
-    } else if (status === "trial" && activation.trial_end && new Date(activation.trial_end) < now) {
-      warning = "انتهت الفترة التجريبية";
-    } else if (status === "suspended") {
-      warning = "حسابك معلق";
     }
+    if (status === "trial" && activation.trial_end && new Date(activation.trial_end) < now) {
+      warnings.push("انتهت الفترة التجريبية");
+    }
+    if (status === "suspended") {
+      warnings.push("حسابك معلق");
+    }
+    const warning = warnings.length > 0 ? warnings.join("\n") : null;
+
+    let needsOnboarding = false;
+    if (isMultiTenant() && user.account_type === "client") {
+      if (!user.organization_id) {
+        needsOnboarding = true;
+      } else {
+        const org = await Organization.findById(user.organization_id).select("settings").lean();
+        needsOnboarding = !org?.settings || !(org.settings as Record<string, unknown>)?.company_name;
+      }
+    }
+
+    await writeAuditLog({
+      target_collection: "users",
+      action: "login",
+      target_id: user._id.toString(),
+      target_username: user.username,
+      performed_by: user.email,
+      performed_by_type: "user",
+      actor_role: toAuditRole(user.role),
+      ip_address: ip,
+      details: { needs_onboarding: needsOnboarding },
+      success: true,
+    });
 
     return Response.json({
       user: {
@@ -176,8 +211,11 @@ export async function POST(request: NextRequest) {
           },
         },
         has_hardware_binding: !!user.hardware_hash,
+        organization_id: user.organization_id?.toString() || null,
+        email_verified: user.email_verified,
       },
       warning,
+      needs_onboarding: needsOnboarding,
     });
   } catch (error) {
     console.error("Login error:", error);

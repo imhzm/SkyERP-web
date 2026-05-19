@@ -3,6 +3,7 @@ import { requireFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { Admin } from "@/models/Admin";
 import { writeAuditLog } from "@/lib/audit";
+import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,9 @@ export async function POST(
   if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
   const { id } = await params;
   const ip = request.headers.get("x-forwarded-for") || "unknown";
+
+  const rl = await checkRateLimit(`admin-lock-admin:${ip}`, "api:admin-mutate");
+  if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
 
   try {
     await connectDB();
@@ -42,6 +46,7 @@ export async function POST(
       performed_by: payload.email,
       performed_by_type: "admin",
       actor_role: "founder",
+      organization_id: payload.organization_id,
       ip_address: ip,
       success: true,
       details: { duration_minutes: lockDuration },

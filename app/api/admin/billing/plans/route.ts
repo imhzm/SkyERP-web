@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       target_id: plan._id.toString(),
       performed_by: payload.email || "admin",
       performed_by_type: "admin",
+      organization_id: payload.organization_id,
       ip_address: ip,
       success: true,
       details: { key: parsed.data.key, name: parsed.data.name, price: parsed.data.price },

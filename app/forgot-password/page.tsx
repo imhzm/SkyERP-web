@@ -7,9 +7,11 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (sent) return;
     setMessage("");
     setLoading(true);
 
@@ -21,6 +23,7 @@ export default function ForgotPasswordPage() {
       });
       const data = await res.json();
       setMessage(data.message || data.error || "حدث خطأ");
+      if (res.ok) setSent(true);
     } catch {
       setMessage("حدث خطأ في الاتصال");
     } finally {
@@ -57,10 +60,10 @@ export default function ForgotPasswordPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || sent}
               className="w-full py-3 bg-[#0A6CF1] hover:bg-[#0955c4] disabled:opacity-50 text-white rounded-lg font-medium transition cursor-pointer"
             >
-              {loading ? "جاري الإرسال..." : "إرسال رابط إعادة التعيين"}
+              {loading ? "جاري الإرسال..." : sent ? "تم الإرسال" : "إرسال رابط إعادة التعيين"}
             </button>
           </form>
 

@@ -1,11 +1,16 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, hashToken } from "@/lib/auth";
 import { resetPasswordSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const rl = await checkRateLimit(`reset-pw:${ip}`, "auth:reset-password");
+  if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
+
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ error: "بيانات غير صالحة" }, { status: 400 }); }
 
@@ -19,32 +24,42 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectDB();
-    const user = await User.findOne({
-      password_reset_token: token,
-      password_reset_expires: { $gt: new Date() },
-      is_deleted: { $ne: true },
-    });
+
+    const user = await User.findOneAndUpdate(
+      {
+        password_reset_token: hashToken(token),
+        password_reset_expires: { $gt: new Date() },
+        is_deleted: { $ne: true },
+      },
+      {
+        $set: {
+          password_reset_token: null,
+          password_reset_expires: null,
+          password_hash: hashPassword(password),
+          password_changed_at: new Date(),
+          email_verified: true,
+          failed_login_attempts: 0,
+          locked_until: null,
+          refresh_tokens: [],
+          sessions: [],
+        },
+      },
+      { new: false }
+    );
 
     if (!user) {
       return Response.json({ error: "رابط إعادة التعيين غير صالح أو منتهي الصلاحية" }, { status: 400 });
     }
-
-    user.password_hash = hashPassword(password);
-    user.password_changed_at = new Date();
-    user.password_reset_token = null;
-    user.password_reset_expires = null;
-    user.failed_login_attempts = 0;
-    user.locked_until = null;
-    user.refresh_tokens = [];
-    await user.save();
 
     await writeAuditLog({
       target_collection: "users",
       action: "password_reset",
       target_id: user._id.toString(),
       target_username: user.username,
-      performed_by: user.username,
+      performed_by: user.email,
       performed_by_type: "user",
+      actor_role: "client",
+      ip_address: ip,
       success: true,
     });
 

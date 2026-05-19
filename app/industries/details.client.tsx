@@ -20,7 +20,7 @@ export default function IndustryDetail({ id }: { id: string }) {
         <div className="max-w-3xl">
           <GlassCard>
             <p className="text-white/50 leading-relaxed mb-6">{industry.description}</p>
-            <a href="/demo"><Button>احجز Demo مجاني</Button></a>
+            <a href="/register"><Button>التسجيل مجاناً</Button></a>
           </GlassCard>
         </div>
       </Container>

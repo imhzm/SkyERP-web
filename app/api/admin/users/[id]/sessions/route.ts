@@ -1,25 +1,28 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
-import { writeAuditLog } from "@/lib/audit";
+import { writeAuditLog, toAuditRole } from "@/lib/audit";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù…ØµØ±Ø­" }, { status: 401 });
 
   const { id } = await params;
   try {
     await connectDB();
     const user = await User.findById(id).select("sessions refresh_tokens");
     if (!user) return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
-    return Response.json({ sessions: user.sessions || [], refresh_tokens: user.refresh_tokens || [] });
+    const safeRefreshTokens = (user.refresh_tokens || []).map((t: { device_info: string; ip: string; created_at: Date; expires_at: Date; }) => ({
+      device_info: t.device_info, ip: t.ip, created_at: t.created_at, expires_at: t.expires_at,
+    }));
+    return Response.json({ sessions: user.sessions || [], refresh_tokens: safeRefreshTokens });
   } catch (error) {
     console.error("Sessions error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }
 
@@ -28,7 +31,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù…ØµØ±Ø­" }, { status: 401 });
 
   const { id } = await params;
   const ip = request.headers.get("x-forwarded-for") || "unknown";
@@ -56,15 +59,16 @@ export async function DELETE(
       target_username: user?.username || null,
       performed_by: payload.email || "admin",
       performed_by_type: "admin",
-      actor_role: (payload.role as any) || "admin",
+      actor_role: toAuditRole(payload.role),
+      organization_id: payload.organization_id,
       ip_address: ip,
       success: true,
       details: { force_all: !sessionId, session_id: sessionId || null },
     });
 
-    return Response.json({ message: sessionId ? "تم إنهاء الجلسة" : "تم إنهاء كل الجلسات" });
+    return Response.json({ message: sessionId ? "ØªÙ… Ø¥Ù†Ù‡Ø§Ø¡ Ø§Ù„Ø¬Ù„Ø³Ø©" : "ØªÙ… Ø¥Ù†Ù‡Ø§Ø¡ ÙƒÙ„ Ø§Ù„Ø¬Ù„Ø³Ø§Øª" });
   } catch (error) {
     console.error("Sessions delete error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }

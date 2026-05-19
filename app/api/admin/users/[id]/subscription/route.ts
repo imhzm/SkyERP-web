@@ -1,9 +1,9 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { updateSubscriptionSchema } from "@/lib/validation";
-import { writeAuditLog } from "@/lib/audit";
+import { writeAuditLog, toAuditRole } from "@/lib/audit";
 import { syncTeamSubscriptionStatus } from "@/lib/subscription";
 
 export async function PATCH(
@@ -11,12 +11,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù…ØµØ±Ø­" }, { status: 401 });
 
   const { id } = await params;
 
   let body: unknown;
-  try { body = await request.json(); } catch { return Response.json({ error: "بيانات غير صالحة" }, { status: 400 }); }
+  try { body = await request.json(); } catch { return Response.json({ error: "Ø¨ÙŠØ§Ù†Ø§Øª ØºÙŠØ± ØµØ§Ù„Ø­Ø©" }, { status: 400 }); }
 
   const parsed = updateSubscriptionSchema.safeParse(body);
   if (!parsed.success) {
@@ -29,7 +29,7 @@ export async function PATCH(
     await connectDB();
     const user = await User.findById(id);
     if (!user || user.is_deleted) {
-      return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
+      return Response.json({ error: "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" }, { status: 404 });
     }
 
     const now = new Date();
@@ -60,7 +60,8 @@ export async function PATCH(
       target_username: user.username,
       performed_by: payload.email,
       performed_by_type: "admin",
-      actor_role: (payload.role as any) || "admin",
+      actor_role: toAuditRole(payload.role),
+      organization_id: payload.organization_id,
       details: { plan, start_date, end_date, auto_renew },
       success: true,
     });
@@ -70,9 +71,9 @@ export async function PATCH(
       console.log(`Synced ${syncResult.updated} team members for user ${id}`);
     }
 
-    return Response.json({ message: "تم تحديث الاشتراك بنجاح", team_synced: syncResult.updated });
+    return Response.json({ message: "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø¨Ù†Ø¬Ø§Ø­", team_synced: syncResult.updated });
   } catch (error) {
     console.error("Admin update subscription error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }

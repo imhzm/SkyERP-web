@@ -1,15 +1,19 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { Organization } from "@/models/Organization";
 import { generateSerialNumber } from "@/models/SerialNumber";
-import { hashPassword, generateToken } from "@/lib/auth";
+import { hashPassword, generateToken, hashToken } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 import { writeAuditLog } from "@/lib/audit";
+import { isMultiTenant, slugify } from "@/lib/organization";
+import { DEFAULT_ORG_SETTINGS } from "@/lib/org-settings-defaults";
+import { sendVerificationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
-  const rl = checkRateLimit(`register:${ip}`, "auth:register");
+  const rl = await checkRateLimit(`register:${ip}`, "auth:register");
   if (!rl.allowed) {
     return getRateLimitResponse(rl.resetIn);
   }
@@ -43,9 +47,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      const field = existingUser.email === email.toLowerCase() ? "email" : "username";
       return Response.json(
-        { error: field === "email" ? "البريد الإلكتروني مستخدم بالفعل" : "اسم المستخدم مستخدم بالفعل" },
+        { error: "اسم المستخدم أو البريد الإلكتروني مستخدم بالفعل" },
         { status: 409 }
       );
     }
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
       username_key: username.toLowerCase(),
       email: email.toLowerCase(),
       email_verified: false,
-      email_verification_token: emailToken,
+      email_verification_token: hashToken(emailToken),
       email_verification_sent_at: now,
       password_hash,
       full_name: username,
@@ -90,6 +93,38 @@ export async function POST(request: NextRequest) {
       sync_status: "synced",
     });
 
+    if (isMultiTenant()) {
+      const orgSlug = slugify(username);
+      const org = await Organization.create({
+        name: username,
+        slug: orgSlug,
+        owner_id: user._id,
+        admins: [{ user_id: user._id, role: "owner" as const, added_at: now }],
+        settings: {
+          ...DEFAULT_ORG_SETTINGS,
+          company_name: "",
+          company_phone: phone || "",
+          company_email: email.toLowerCase(),
+        },
+        subscription: {
+          plan: "trial",
+          status: "trial",
+          start_date: now,
+          end_date: trialEnd,
+          auto_renew: false,
+          grace_period_end: new Date(trialEnd.getTime() + 7 * 24 * 60 * 60 * 1000),
+          trial_start: now,
+          trial_end: trialEnd,
+        },
+        limits: { max_users: 1, max_devices: 1 },
+        serial_number: serial,
+        is_active: true,
+        created_at: now,
+        updated_at: now,
+      });
+      await User.updateOne({ _id: user._id }, { $set: { organization_id: org._id } });
+    }
+
     await writeAuditLog({
       target_collection: "users",
       action: "register",
@@ -103,13 +138,17 @@ export async function POST(request: NextRequest) {
       success: true,
     });
 
+    const emailResult = await sendVerificationEmail(email.toLowerCase(), emailToken);
+
     return Response.json(
       {
-        message: "تم التسجيل بنجاح",
+        message: emailResult.success
+          ? "تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب"
+          : "تم التسجيل بنجاح",
+        email_verification_sent: emailResult.success,
         user: {
           username: user.username,
           email: user.email,
-          activation: user.activation,
         },
       },
       { status: 201 }

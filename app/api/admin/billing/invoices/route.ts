@@ -1,10 +1,10 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { Invoice } from "@/models/billing/Invoice";
 import { Transaction } from "@/models/billing/Transaction";
 import { User } from "@/models/User";
-import { writeAuditLog } from "@/lib/audit";
+import { writeAuditLog, toAuditRole } from "@/lib/audit";
 import { z } from "zod";
 
 const querySchema = z.object({
@@ -24,14 +24,14 @@ const createInvoiceSchema = z.object({
 
 export async function GET(request: NextRequest) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù…ØµØ±Ø­" }, { status: 401 });
 
   try {
     await connectDB();
     const { searchParams } = new URL(request.url);
     const parsed = querySchema.safeParse(Object.fromEntries(searchParams));
     if (!parsed.success) {
-      return Response.json({ error: "معاملات غير صحيحة" }, { status: 400 });
+      return Response.json({ error: "Ù…Ø¹Ø§Ù…Ù„Ø§Øª ØºÙŠØ± ØµØ­ÙŠØ­Ø©" }, { status: 400 });
     }
 
     const { page, limit, status, user_id } = parsed.data;
@@ -50,13 +50,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Invoices error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   const payload = requireAdminOrFounder(request);
-  if (!payload) return Response.json({ error: "غير مصرح" }, { status: 401 });
+  if (!payload) return Response.json({ error: "ØºÙŠØ± Ù…ØµØ±Ø­" }, { status: 401 });
   const ip = request.headers.get("x-forwarded-for") || "unknown";
 
   try {
@@ -64,11 +64,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = createInvoiceSchema.safeParse(body);
     if (!parsed.success) {
-      return Response.json({ error: "بيانات غير صحيحة", issues: parsed.error.issues }, { status: 400 });
+      return Response.json({ error: "Ø¨ÙŠØ§Ù†Ø§Øª ØºÙŠØ± ØµØ­ÙŠØ­Ø©", issues: parsed.error.issues }, { status: 400 });
     }
 
     const user = await User.findById(parsed.data.user_id);
-    if (!user) return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
+    if (!user) return Response.json({ error: "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" }, { status: 404 });
 
     const now = new Date();
     const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}-`;
@@ -82,11 +82,12 @@ export async function POST(request: NextRequest) {
       user_id: user._id,
       username: user.username,
       email: user.email,
+      organization_id: user.organization_id || null,
       plan: parsed.data.plan,
       amount: parsed.data.amount,
       due_date,
       notes: parsed.data.notes || "",
-      items: [{ description: `اشتراك ${parsed.data.plan}`, quantity: 1, unit_price: parsed.data.amount, total: parsed.data.amount }],
+      items: [{ description: `Ø§Ø´ØªØ±Ø§Ù ${parsed.data.plan}`, quantity: 1, unit_price: parsed.data.amount, total: parsed.data.amount }],
       created_by: payload.email || "admin",
     });
 
@@ -97,7 +98,8 @@ export async function POST(request: NextRequest) {
       target_username: user.username,
       performed_by: payload.email || "admin",
       performed_by_type: "admin",
-      actor_role: (payload.role as any) || "admin",
+      actor_role: toAuditRole(payload.role),
+      organization_id: payload.organization_id,
       ip_address: ip,
       success: true,
       details: { invoice_number, amount: parsed.data.amount, plan: parsed.data.plan },
@@ -106,6 +108,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ invoice }, { status: 201 });
   } catch (error) {
     console.error("Create invoice error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }

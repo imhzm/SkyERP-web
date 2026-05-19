@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
         } else {
           await User.updateOne(
             { _id: payload.sub },
-            { $pull: { refresh_tokens: { token_hash: tokenHash } } }
+            {
+              $pull: { refresh_tokens: { token_hash: tokenHash } },
+              $set: { sessions: [] },
+            }
           );
         }
       }

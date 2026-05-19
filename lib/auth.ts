@@ -2,7 +2,10 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString("hex");
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
 
@@ -31,7 +34,6 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 
   const [salt, hash] = storedHash.split(":");
 
-  // Try current iterations first
   const computedHash = crypto.pbkdf2Sync(
     password,
     salt,
@@ -40,11 +42,10 @@ export function verifyPassword(password: string, storedHash: string): boolean {
     PBKDF2_DIGEST
   ).toString("hex");
 
-  if (computedHash === hash) {
+  if (timingSafeEqual(computedHash, hash)) {
     return true;
   }
 
-  // Fallback to legacy iterations (for users created by older desktop app)
   const legacyHash = crypto.pbkdf2Sync(
     password,
     salt,
@@ -53,10 +54,19 @@ export function verifyPassword(password: string, storedHash: string): boolean {
     PBKDF2_DIGEST
   ).toString("hex");
 
-  return legacyHash === hash;
+  return timingSafeEqual(legacyHash, hash);
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 export function rehashIfNeeded(password: string, storedHash: string): string | null {
+  if (!storedHash || !storedHash.includes(":")) {
+    return null;
+  }
+
   const [salt, hash] = storedHash.split(":");
   const legacyHash = crypto.pbkdf2Sync(
     password,
@@ -66,7 +76,7 @@ export function rehashIfNeeded(password: string, storedHash: string): string | n
     PBKDF2_DIGEST
   ).toString("hex");
 
-  if (legacyHash === hash) {
+  if (timingSafeEqual(legacyHash, hash)) {
     return hashPassword(password);
   }
 
@@ -78,7 +88,7 @@ export function rehashIfNeeded(password: string, storedHash: string): string | n
     PBKDF2_DIGEST
   ).toString("hex");
 
-  if (currentHash === hash) {
+  if (timingSafeEqual(currentHash, hash)) {
     return null;
   }
 
@@ -90,6 +100,7 @@ export interface JwtPayload {
   type: "user" | "admin";
   role?: string;
   email?: string;
+  organization_id?: string;
 }
 
 export function signAccessToken(payload: JwtPayload): string {

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import mongoose from "mongoose";
 import { getTokenFromRequest } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
@@ -6,6 +7,17 @@ import { hashPassword } from "@/lib/auth";
 import { createTeamSchema } from "@/lib/validation";
 import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 import { writeAuditLog } from "@/lib/audit";
+
+interface TeamMemberDoc {
+  _id: mongoose.Types.ObjectId;
+  username: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: Date;
+  last_login: Date;
+  hardware_hash?: string;
+}
 
 export async function GET(request: NextRequest) {
   const payload = getTokenFromRequest(request);
@@ -26,13 +38,14 @@ export async function GET(request: NextRequest) {
 
     const members = await User.find({
       _id: { $in: user.team_members || [] },
+      ...(user.organization_id ? { organization_id: user.organization_id } : {}),
       is_deleted: { $ne: true },
     })
       .select("username email full_name is_active created_at last_login hardware_hash")
-      .lean();
+      .lean<TeamMemberDoc[]>();
 
     return Response.json({
-      team: members.map((m: any) => ({
+      team: members.map((m: TeamMemberDoc) => ({
         id: m._id.toString(),
         username: m.username,
         email: m.email,
@@ -58,7 +71,7 @@ export async function POST(request: NextRequest) {
   }
 
   const ip = request.headers.get("x-forwarded-for") || "unknown";
-  const rl = checkRateLimit(`team:${payload.sub}`, "api:team-create");
+  const rl = await checkRateLimit(`team:${payload.sub}`, "api:team-create");
   if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
 
   try {
@@ -111,6 +124,7 @@ export async function POST(request: NextRequest) {
       role: "sub_user",
       account_type: "sub_user",
       owner_id: owner._id,
+      organization_id: owner.organization_id || null,
       serial_number: null,
       max_team_members: 0,
       is_active: true,
@@ -143,6 +157,7 @@ export async function POST(request: NextRequest) {
       performed_by: owner.email,
       performed_by_type: "user",
       actor_role: "client",
+      organization_id: payload.organization_id,
       details: { added_by: owner.email },
       success: true,
     });

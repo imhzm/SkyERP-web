@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Phone, Mail, MapPin, ArrowUpRight } from "lucide-react";
+import { Phone, Mail, MapPin } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { SITE } from "@/lib/constants";
 import { navigation } from "@/data/navigation";
@@ -84,8 +84,8 @@ export default function Footer() {
               </a>
             </div>
             <div className="mt-6">
-              <Link href="/demo">
-                <Button size="sm">احجز Demo مجاني</Button>
+              <Link href="/register">
+                <Button size="sm">التسجيل مجاناً</Button>
               </Link>
             </div>
           </div>

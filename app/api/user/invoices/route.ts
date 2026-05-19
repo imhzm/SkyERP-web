@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   }
 
   const ip = request.headers.get("x-forwarded-for") || "unknown";
-  const rl = checkRateLimit(`invoices:${payload.sub}`, "api:user-invoices");
+  const rl = await checkRateLimit(`invoices:${payload.sub}`, "api:user-invoices");
   if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
 
   try {
@@ -29,11 +29,12 @@ export async function GET(request: NextRequest) {
     }
 
     const { page, limit } = parsed.data;
-    const filter = { user_id: payload.sub };
+    const filter: Record<string, any> = { user_id: payload.sub };
+    if (payload.organization_id) filter.organization_id = payload.organization_id;
 
     const [total, invoices] = await Promise.all([
       Invoice.countDocuments(filter),
-      Invoice.find(filter).sort({ created_at: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Invoice.find(filter).sort({ created_at: -1 }).skip((page - 1) * limit).limit(limit).select("-payment_method -payment_reference -notes").lean(),
     ]);
 
     return Response.json({

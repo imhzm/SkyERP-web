@@ -10,7 +10,7 @@ import { navigation } from "@/data/navigation";
 import { SITE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const HIDDEN_PATHS = ["/dashboard", "/admin", "/login", "/register", "/forgot-password", "/reset-password"];
+const HIDDEN_PATHS = ["/dashboard", "/admin", "/login", "/register", "/forgot-password", "/reset-password", "/onboarding", "/verify-email"];
 
 export default function Header() {
   const pathname = usePathname();
@@ -67,8 +67,8 @@ export default function Header() {
           </nav>
 
           <div className="hidden lg:flex items-center gap-3">
-            <Link href="/demo">
-              <Button size="sm">احجز Demo</Button>
+            <Link href="/register">
+              <Button size="sm">التسجيل مجاناً</Button>
             </Link>
           </div>
 
@@ -111,8 +111,8 @@ export default function Header() {
             </div>
           ))}
           <div className="pt-4 px-4">
-            <Link href="/demo" onClick={() => setOpen(false)}>
-              <Button className="w-full">احجز Demo مجاني</Button>
+            <Link href="/register" onClick={() => setOpen(false)}>
+              <Button className="w-full">التسجيل مجاناً</Button>
             </Link>
           </div>
         </nav>

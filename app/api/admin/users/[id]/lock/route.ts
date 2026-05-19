@@ -1,8 +1,9 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { requireAdminOrFounder } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
-import { writeAuditLog } from "@/lib/audit";
+import { writeAuditLog, toAuditRole } from "@/lib/audit";
+import { checkRateLimit, getRateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(
   request: NextRequest,
@@ -13,6 +14,8 @@ export async function POST(
 
   const { id } = await params;
   const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const rl = await checkRateLimit(`admin-lock:${ip}`, "api:admin-mutate");
+  if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
 
   try {
     await connectDB();
@@ -20,7 +23,7 @@ export async function POST(
     const lockDuration = typeof body.duration_minutes === "number" ? body.duration_minutes : 60;
 
     const user = await User.findById(id);
-    if (!user) return Response.json({ error: "المستخدم غير موجود" }, { status: 404 });
+    if (!user) return Response.json({ error: "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" }, { status: 404 });
 
     const isCurrentlyLocked = user.locked_until && new Date(user.locked_until) > new Date();
 
@@ -39,18 +42,19 @@ export async function POST(
       target_username: user.username,
       performed_by: payload.email || "admin",
       performed_by_type: "admin",
-      actor_role: (payload.role as any) || "admin",
+      actor_role: toAuditRole(payload.role),
+      organization_id: payload.organization_id,
       ip_address: ip,
       success: true,
       details: { duration_minutes: lockDuration },
     });
 
     return Response.json({
-      message: isCurrentlyLocked ? "تم فتح الحساب" : "تم قفل الحساب",
+      message: isCurrentlyLocked ? "ØªÙ… ÙØªØ­ Ø§Ù„Ø­Ø³Ø§Ø¨" : "ØªÙ… Ù‚ÙÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨",
       locked: !isCurrentlyLocked,
     });
   } catch (error) {
     console.error("Lock user error:", error);
-    return Response.json({ error: "حدث خطأ" }, { status: 500 });
+    return Response.json({ error: "Ø­Ø¯Ø« Ø®Ø·Ø£" }, { status: 500 });
   }
 }

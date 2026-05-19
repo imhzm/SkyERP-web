@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IInvoice extends Document {
   invoice_number: string;
   user_id: mongoose.Types.ObjectId;
+  organization_id: mongoose.Types.ObjectId | null;
   username: string;
   email: string;
   plan: string;
@@ -29,6 +30,7 @@ export interface IInvoice extends Document {
 const InvoiceSchema = new Schema<IInvoice>({
   invoice_number: { type: String, required: true, unique: true },
   user_id: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  organization_id: { type: Schema.Types.ObjectId, ref: "Organization", default: null, index: true },
   username: { type: String, required: true },
   email: { type: String, required: true },
   plan: { type: String, enum: ["trial", "monthly", "half_yearly", "yearly", "lifetime"], required: true },

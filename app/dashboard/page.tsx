@@ -10,9 +10,17 @@ interface UserData {
   max_team_members: number; team_members: any[]; company_name: string | null;
   activation: { status: string; trial_end: string | null; max_devices: number;
     subscription: { plan: string; end_date: string | null; }; };
-  hardware_hash: string | null; hardware_first_login: string | null;
+  has_hardware_binding: boolean; hardware_first_login: string | null;
   sessions: { id: string; type: string; device_info: string; ip: string; login_at: string; last_active: string }[];
   created_at: string; last_login: string | null;
+  organization_id: string | null;
+}
+
+interface OrgInfo {
+  id: string; name: string; slug: string; serial_number: string | null;
+  limits: { max_users: number; max_devices: number };
+  subscription: { plan: string; status: string; end_date: string | null };
+  is_active: boolean; created_at: string;
 }
 
 export default function DashboardPage() {
@@ -21,9 +29,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("overview");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [endingSessionId, setEndingSessionId] = useState<string | null>(null);
   const [pwForm, setPwForm] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState("");
+  const [resetEmailMsg, setResetEmailMsg] = useState("");
+  const [resetEmailLoading, setResetEmailLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [showAddTeam, setShowAddTeam] = useState(false);
@@ -36,9 +47,12 @@ export default function DashboardPage() {
   const [invoicesPage, setInvoicesPage] = useState(1);
   const [invoicesTotalPages, setInvoicesTotalPages] = useState(1);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null);
+  const [orgLoading, setOrgLoading] = useState(false);
 
   useEffect(() => { fetchUser(); }, []);
   useEffect(() => { if (tab === "invoices") fetchInvoices(); }, [tab, invoicesPage]);
+  useEffect(() => { if (tab === "organization" && user?.organization_id) fetchOrg(); }, [tab, user?.organization_id]);
 
   async function fetchUser() {
     try {
@@ -58,6 +72,15 @@ export default function DashboardPage() {
     } catch {}
   }
 
+  async function fetchOrg() {
+    setOrgLoading(true);
+    try {
+      const res = await fetch("/api/organization");
+      if (res.ok) { const data = await res.json(); setOrgInfo(data.organization); }
+    } catch {}
+    finally { setOrgLoading(false); }
+  }
+
   async function fetchInvoices() {
     setInvoicesLoading(true);
     try {
@@ -70,6 +93,19 @@ export default function DashboardPage() {
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
+  }
+
+  async function handleEndSession(sessionId: string) {
+    if (endingSessionId) return;
+    setEndingSessionId(sessionId);
+    try {
+      const res = await fetch(`/api/user/sessions/${sessionId}`, { method: "DELETE" });
+      if (res.ok) {
+        setUser((prev) => prev ? { ...prev, sessions: (prev.sessions || []).filter((s) => s.id !== sessionId) } : null);
+      }
+    } catch {} finally {
+      setEndingSessionId(null);
+    }
   }
 
   async function handleChangePassword(e: React.FormEvent) {
@@ -85,6 +121,20 @@ export default function DashboardPage() {
       setPwSuccess("تم تغيير كلمة المرور");
       setTimeout(() => router.push("/login"), 2000);
     } catch { setPwError("حدث خطأ"); }
+  }
+
+  async function handleResetViaEmail() {
+    setResetEmailLoading(true);
+    setResetEmailMsg("");
+    try {
+      const res = await fetch("/api/user/settings/reset-password", { method: "POST" });
+      const data = await res.json();
+      setResetEmailMsg(res.ok ? "تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني" : data.error || "حدث خطأ");
+    } catch {
+      setResetEmailMsg("حدث خطأ في الاتصال");
+    } finally {
+      setResetEmailLoading(false);
+    }
   }
 
   async function handleAddTeam(e: React.FormEvent) {
@@ -139,6 +189,7 @@ export default function DashboardPage() {
   const tabs = [
     { k: "overview", l: "الرئيسية" },
     { k: "profile", l: "ملفي الشخصي" },
+    ...(user.organization_id ? [{ k: "organization", l: "المنظمة" }] : []),
     ...(user.account_type === "client" ? [{ k: "invoices", l: "الفواتير" }] : []),
     ...(user.account_type === "client" ? [{ k: "team", l: "الفريق" }] : []),
   ];
@@ -206,7 +257,7 @@ export default function DashboardPage() {
                 <div><p className="text-xs text-gray-500">الخطة</p><p className="text-white">{sub.plan === "trial" ? "تجريبي" : sub.plan === "monthly" ? "شهري" : sub.plan === "half_yearly" ? "نصف سنوي" : sub.plan === "yearly" ? "سنوي" : "دائم"}</p></div>
                 {sub.end_date && <div><p className="text-xs text-gray-500">تاريخ الانتهاء</p><p className="text-white">{new Date(sub.end_date).toLocaleDateString("ar-EG")}</p></div>}
                 <div><p className="text-xs text-gray-500">الأجهزة المسموحة</p><p className="text-white">{activation.max_devices || 1}</p></div>
-                <div><p className="text-xs text-gray-500">حالة الجهاز</p><p className={user.hardware_hash ? "text-green-400" : "text-gray-400"}>{user.hardware_hash ? "مقيد" : "غير مقيد"}</p></div>
+                <div><p className="text-xs text-gray-500">حالة الجهاز</p><p className={user.has_hardware_binding ? "text-green-400" : "text-gray-400"}>{user.has_hardware_binding ? "مقيد" : "غير مقيد"}</p></div>
               </div>
               {subStatus.label === "منتهي" && (
                 <a href="/pricing" className="mt-4 inline-block px-4 py-2 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition">تجديد الاشتراك</a>
@@ -217,14 +268,12 @@ export default function DashboardPage() {
               {/* Device */}
               <div className="bg-white/5 rounded-xl border border-white/10 p-6">
                 <h2 className="text-sm font-bold text-white mb-4">الجهاز المسجل</h2>
-                {user.hardware_hash ? (
+                {user.has_hardware_binding ? (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">بصمة الجهاز</p>
-                    <p className="text-white text-sm font-mono" dir="ltr">{user.hardware_hash}</p>
+                    <p className="text-xs text-green-400">✓ هذا الجهاز مسجل لحسابك</p>
                     {user.hardware_first_login && (
                       <><p className="text-xs text-gray-500 mt-3 mb-1">تاريخ التسجيل</p><p className="text-white text-sm">{new Date(user.hardware_first_login).toLocaleDateString("ar-EG")}</p></>
                     )}
-                    <p className="text-xs text-green-400 mt-3">✓ هذا الجهاز مسجل لحسابك</p>
                   </div>
                 ) : (
                   <div>
@@ -242,7 +291,13 @@ export default function DashboardPage() {
                     {user.sessions.slice(-5).reverse().map((s) => (
                       <div key={s.id} className="flex items-center justify-between text-sm">
                         <div><p className="text-gray-300">{s.type === "web" ? "موقع" : "برنامج"}</p><p className="text-xs text-gray-500">{new Date(s.login_at).toLocaleString("ar-EG")}</p></div>
-                        <span className="text-xs text-gray-500">{s.ip}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">{s.ip}</span>
+                          <button onClick={() => handleEndSession(s.id)} disabled={endingSessionId === s.id}
+                            className="px-2 py-0.5 text-xs bg-red-500/10 border border-red-500/30 rounded text-red-400 hover:bg-red-500/20 transition cursor-pointer disabled:opacity-50">
+                            {endingSessionId === s.id ? "..." : "إنهاء"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -302,6 +357,29 @@ export default function DashboardPage() {
                 {user.company_name && <div><p className="text-xs text-gray-500 mb-1">الشركة</p><p className="text-white">{user.company_name}</p></div>}
                 <div><p className="text-xs text-gray-500 mb-1">تاريخ التسجيل</p><p className="text-white">{new Date(user.created_at).toLocaleDateString("ar-EG")}</p></div>
                 {user.last_login && <div><p className="text-xs text-gray-500 mb-1">آخر دخول</p><p className="text-white">{new Date(user.last_login).toLocaleString("ar-EG")}</p></div>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Organization Tab */}
+        {tab === "organization" && (
+          <div className="bg-white/5 rounded-xl border border-white/10 p-6">
+            {orgLoading ? (
+              <p className="text-gray-500 text-sm text-center py-6">جاري التحميل...</p>
+            ) : !orgInfo ? (
+              <p className="text-gray-500 text-sm text-center py-6">لا توجد معلومات منظمة</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                <div><p className="text-xs text-gray-500 mb-1">اسم المنظمة</p><p className="text-white font-medium">{orgInfo.name}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">الرابط (slug)</p><p className="text-white">{orgInfo.slug}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">الرقم التسلسلي</p><p className="text-white font-mono text-sm" dir="ltr">{orgInfo.serial_number || "—"}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">الحالة</p><p className={orgInfo.is_active ? "text-green-400" : "text-red-400"}>{orgInfo.is_active ? "نشط" : "موقوف"}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">الحد الأقصى للمستخدمين</p><p className="text-white">{orgInfo.limits?.max_users || 1}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">الحد الأقصى للأجهزة</p><p className="text-white">{orgInfo.limits?.max_devices || 1}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">خطة الاشتراك</p><p className="text-white">{orgInfo.subscription?.plan === "trial" ? "تجريبي" : orgInfo.subscription?.plan === "monthly" ? "شهري" : orgInfo.subscription?.plan === "yearly" ? "سنوي" : orgInfo.subscription?.plan || "—"}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">تاريخ الاشتراك</p><p className="text-white">{orgInfo.subscription?.end_date ? new Date(orgInfo.subscription.end_date).toLocaleDateString("ar-EG") : "—"}</p></div>
+                <div><p className="text-xs text-gray-500 mb-1">تاريخ الإنشاء</p><p className="text-white">{new Date(orgInfo.created_at).toLocaleDateString("ar-EG")}</p></div>
               </div>
             )}
           </div>
@@ -416,17 +494,28 @@ export default function DashboardPage() {
           <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-white">تغيير كلمة المرور</h2>
-              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-white cursor-pointer text-xl">✕</button>
+              <button onClick={() => { setShowPasswordModal(false); setPwError(""); setPwSuccess(""); setResetEmailMsg(""); setPwForm({ current_password: "", new_password: "", confirm_password: "" }); }} className="text-gray-400 hover:text-white cursor-pointer text-xl">✕</button>
             </div>
             {pwError && <div className="bg-red-500/10 text-red-400 rounded-lg px-4 py-3 mb-4 text-sm">{pwError}</div>}
             {pwSuccess && <div className="bg-green-500/10 text-green-400 rounded-lg px-4 py-3 mb-4 text-sm">{pwSuccess}</div>}
             {!pwSuccess && (
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div><label className="block text-xs text-gray-400 mb-1">كلمة المرور الحالية</label><input type="password" value={pwForm.current_password} onChange={(e) => setPwForm({ ...pwForm, current_password: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" required /></div>
-                <div><label className="block text-xs text-gray-400 mb-1">كلمة المرور الجديدة</label><input type="password" value={pwForm.new_password} onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" required /></div>
-                <div><label className="block text-xs text-gray-400 mb-1">تأكيد كلمة المرور</label><input type="password" value={pwForm.confirm_password} onChange={(e) => setPwForm({ ...pwForm, confirm_password: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" required /></div>
-                <button type="submit" className="w-full py-2.5 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition cursor-pointer">تغيير كلمة المرور</button>
-              </form>
+              <>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div><label className="block text-xs text-gray-400 mb-1">كلمة المرور الحالية</label><input type="password" value={pwForm.current_password} onChange={(e) => setPwForm({ ...pwForm, current_password: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" required /></div>
+                  <div><label className="block text-xs text-gray-400 mb-1">كلمة المرور الجديدة</label><input type="password" value={pwForm.new_password} onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" required /></div>
+                  <div><label className="block text-xs text-gray-400 mb-1">تأكيد كلمة المرور</label><input type="password" value={pwForm.confirm_password} onChange={(e) => setPwForm({ ...pwForm, confirm_password: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" required /></div>
+                  <button type="submit" className="w-full py-2.5 bg-[#0A6CF1] text-white rounded-lg text-sm font-medium hover:bg-[#0955c4] transition cursor-pointer">تغيير كلمة المرور</button>
+                </form>
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
+                  <div className="relative flex justify-center"><span className="px-2 bg-[#0a0a0a] text-gray-500 text-xs">أو</span></div>
+                </div>
+                {resetEmailMsg && <div className="bg-blue-500/10 text-blue-400 rounded-lg px-4 py-3 mb-3 text-sm">{resetEmailMsg}</div>}
+                <button type="button" onClick={handleResetViaEmail} disabled={resetEmailLoading}
+                  className="w-full py-2.5 bg-white/5 border border-white/10 text-gray-300 rounded-lg text-sm hover:text-white hover:bg-white/10 transition cursor-pointer disabled:opacity-50">
+                  {resetEmailLoading ? "جاري الإرسال..." : "إرسال رابط إعادة التعيين عبر البريد"}
+                </button>
+              </>
             )}
           </div>
         </div>

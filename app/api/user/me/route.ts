@@ -1,9 +1,35 @@
+import mongoose from "mongoose";
 import { NextRequest } from "next/server";
 import { getTokenFromRequest } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { checkCascadingExpiry } from "@/lib/subscription";
 import { updateProfileSchema } from "@/lib/validation";
+
+interface MeUserResult {
+  _id: mongoose.Types.ObjectId;
+  is_deleted: boolean;
+  account_type: string;
+  owner_id?: mongoose.Types.ObjectId;
+  username: string;
+  email: string;
+  full_name: string;
+  role: string;
+  phone: string;
+  organization_id?: string;
+  permissions?: string[];
+  is_active?: boolean;
+  activation?: Record<string, unknown>;
+  serial_number?: string;
+  company_name?: string;
+  hardware_hash?: string;
+  team_members?: number;
+  max_team_members?: number;
+  sessions?: Record<string, unknown>[];
+  created_at?: Date;
+  last_login?: Date;
+  hardware_first_login?: Date;
+}
 
 export async function GET(request: NextRequest) {
   const payload = getTokenFromRequest(request);
@@ -15,16 +41,14 @@ export async function GET(request: NextRequest) {
     await connectDB();
     const user = await User.findById(payload.sub)
       .select("-password_hash -refresh_tokens -audit_log -email_verification_token -password_reset_token")
-      .lean();
+      .lean<MeUserResult | null>();
 
-    if (!user || (user as any).is_deleted) {
+    if (!user || user.is_deleted) {
       return Response.json({ error: "غير موجود" }, { status: 404 });
     }
 
-    const u = user as any;
-
-    if (u.account_type === "sub_user" && u.owner_id) {
-      const cascading = await checkCascadingExpiry(u._id.toString());
+    if (user.account_type === "sub_user" && user.owner_id) {
+      const cascading = await checkCascadingExpiry(user._id.toString());
       if (cascading.blocked) {
         return Response.json({ error: cascading.reason || "تم تعليق حسابك من قبل الإدارة" }, { status: 403 });
       }
@@ -32,25 +56,36 @@ export async function GET(request: NextRequest) {
 
     return Response.json({
       user: {
-        id: u._id.toString(),
-        username: u.username,
-        email: u.email,
-        full_name: u.full_name,
-        phone: u.phone,
-        role: u.role,
-        account_type: u.account_type || "client",
-        owner_id: u.owner_id?.toString() || null,
-        serial_number: u.serial_number || null,
-        max_team_members: u.max_team_members || 0,
-        team_members: u.team_members || [],
-        company_name: u.company_name || null,
-        email_verified: u.email_verified,
-        activation: u.activation,
-        hardware_hash: u.hardware_hash ? u.hardware_hash.substring(0, 16) + "..." : null,
-        hardware_first_login: u.hardware_first_login,
-        sessions: (u.sessions || []).slice(-10),
-        created_at: u.created_at,
-        last_login: u.last_login,
+        id: user._id.toString(),
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+        phone: user.phone,
+        account_type: user.account_type || "client",
+        serial_number: user.serial_number || null,
+        company_name: user.company_name || null,
+        organization_id: user.organization_id?.toString() || null,
+        permissions: user.permissions || [],
+        activation: {
+          status: user.activation?.status || "trial",
+          trial_end: user.activation?.trial_end || null,
+          max_devices: (user.activation as Record<string, unknown>)?.max_devices || 1,
+          subscription: {
+            plan: ((user.activation as Record<string, unknown>)?.subscription as Record<string, unknown>)?.plan || "trial",
+            end_date: ((user.activation as Record<string, unknown>)?.subscription as Record<string, unknown>)?.end_date || null,
+          },
+        },
+        sessions: (user.sessions || []).slice(-5).map((s: Record<string, unknown>) => ({
+          id: s.id, type: s.type, device_info: s.device_info,
+          ip: typeof s.ip === "string" ? s.ip.replace(/\.\d+$/, ".0") : s.ip,
+          login_at: s.login_at, last_active: s.last_active,
+        })),
+        created_at: user.created_at,
+        last_login: user.last_login || null,
+        max_team_members: user.max_team_members || 0,
+        has_hardware_binding: !!user.hardware_hash,
+        hardware_first_login: user.hardware_first_login || null,
       },
     });
   } catch (error) {
@@ -68,33 +103,33 @@ export async function PATCH(request: NextRequest) {
   try {
     await connectDB();
 
-    const body = await request.json();
+    let body: unknown;
+    try { body = await request.json(); } catch { return Response.json({ error: "بيانات غير صالحة" }, { status: 400 }); }
     const parsed = updateProfileSchema.safeParse(body);
     if (!parsed.success) {
       return Response.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const update: Record<string, any> = { last_modified: new Date() };
+    const update: Record<string, unknown> = { last_modified: new Date() };
     if (parsed.data.full_name !== undefined) update.full_name = parsed.data.full_name;
     if (parsed.data.phone !== undefined) update.phone = parsed.data.phone || null;
     if (parsed.data.company_name !== undefined) update.company_name = parsed.data.company_name || null;
 
-    const user = await User.findByIdAndUpdate(payload.sub, { $set: update }, { new: true })
+    const updated = await User.findByIdAndUpdate(payload.sub, { $set: update }, { new: true })
       .select("-password_hash -refresh_tokens -audit_log -email_verification_token -password_reset_token")
-      .lean();
+      .lean<MeUserResult | null>();
 
-    if (!user || (user as any).is_deleted) {
+    if (!updated || updated.is_deleted) {
       return Response.json({ error: "غير موجود" }, { status: 404 });
     }
 
-    const u = user as any;
     return Response.json({
       message: "تم تحديث الملف الشخصي",
       user: {
-        id: u._id.toString(), username: u.username, email: u.email,
-        full_name: u.full_name, phone: u.phone, company_name: u.company_name,
-        role: u.role, account_type: u.account_type || "client",
-        serial_number: u.serial_number || null,
+        id: updated._id.toString(), username: updated.username, email: updated.email,
+        full_name: updated.full_name, phone: updated.phone, company_name: updated.company_name,
+        role: updated.role, account_type: updated.account_type || "client",
+        serial_number: updated.serial_number || null,
       },
     });
   } catch (error) {

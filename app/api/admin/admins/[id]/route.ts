@@ -21,18 +21,11 @@ export async function GET(
 
     return Response.json({
       admin: {
-        id: admin._id.toString(),
-        email: admin.email,
-        full_name: admin.full_name,
-        role: admin.role,
-        permissions: admin.permissions,
-        is_active: admin.is_active,
-        notes: admin.notes || "",
-        created_by: admin.created_by?.toString() || null,
-        last_login: admin.last_login,
-        created_at: admin.created_at,
-        login_attempts: admin.login_attempts,
-        locked_until: admin.locked_until,
+        id: admin._id.toString(), username: admin.username, email: admin.email,
+        full_name: admin.full_name, role: admin.role, is_active: admin.is_active,
+        last_login: admin.last_login, created_at: admin.created_at,
+        notes: admin.notes, permissions: admin.permissions,
+        two_factor_enabled: admin.two_factor_enabled,
       },
     });
   } catch (error) {
@@ -94,6 +87,7 @@ export async function PATCH(
       performed_by: payload.email,
       performed_by_type: "admin",
       actor_role: "founder",
+      organization_id: payload.organization_id,
       ip_address: ip,
       details: { changes: Object.keys(update) },
       success: true,
@@ -138,6 +132,7 @@ export async function DELETE(
       performed_by: payload.email,
       performed_by_type: "admin",
       actor_role: "founder",
+      organization_id: payload.organization_id,
       ip_address: ip,
       success: true,
     });

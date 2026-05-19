@@ -36,9 +36,9 @@ export default function HeroCommandCenter() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/demo">
+            <Link href="/register">
               <Button size="lg" className="text-base gap-2">
-                احجز Demo مجاني
+                التسجيل مجاناً
               </Button>
             </Link>
             <a

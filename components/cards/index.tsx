@@ -142,7 +142,7 @@ export function PricingCard({
           </li>
         ))}
       </ul>
-      <Link href={highlighted ? "/demo" : "/contact"}>
+      <Link href={highlighted ? "/register" : "/contact"}>
         <Button
           variant={highlighted ? "primary" : "outline"}
           className="w-full"

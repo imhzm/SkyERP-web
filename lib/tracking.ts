@@ -10,7 +10,7 @@ export function trackEvent(eventName: string, params?: Record<string, unknown>) 
 }
 
 export const Events = {
-  DEMO_CLICK: "demo_click",
+
   WHATSAPP_CLICK: "whatsapp_click",
   CONTACT_SUBMIT: "contact_submit",
   PRICING_VIEW: "pricing_view",
