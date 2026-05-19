@@ -9,6 +9,7 @@ export interface IPlan extends Document {
   grace_period_days: number;
   max_devices: number;
   features: string[];
+  allowed_apps: string[] | "*";
   is_active: boolean;
   sort_order: number;
   created_at: Date;
@@ -24,6 +25,7 @@ const PlanSchema = new Schema<IPlan>({
   grace_period_days: { type: Number, default: 7 },
   max_devices: { type: Number, default: 1 },
   features: [{ type: String }],
+  allowed_apps: { type: Schema.Types.Mixed, default: "*" },
   is_active: { type: Boolean, default: true },
   sort_order: { type: Number, default: 0 },
   created_at: { type: Date, default: Date.now },

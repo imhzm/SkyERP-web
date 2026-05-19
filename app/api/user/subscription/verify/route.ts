@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { getTokenFromRequest } from "@/lib/middleware";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { Plan } from "@/models/billing/Plan";
 import { checkCascadingExpiry } from "@/lib/subscription";
 
 interface VerifyUserResult {
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
     const activation: Record<string, unknown> = user.activation || {};
     const sub: Record<string, unknown> = (activation.subscription as Record<string, unknown>) || {};
     const status = (activation.status as string) || "trial";
+    const planKey = (sub.plan as string) || "trial";
 
     let valid = true;
     let reason: string | null = null;
@@ -50,11 +52,24 @@ export async function POST(request: NextRequest) {
       if (cascading.blocked) { valid = false; reason = cascading.reason || "owner_expired"; }
     }
 
+    // 📦 Resolve allowed apps from Plan
+    let allowedApps: string[] | "*" = "*";
+    try {
+      const plan = await Plan.findOne({ key: planKey }).select("allowed_apps").lean();
+      if (plan) {
+        allowedApps = (plan.allowed_apps as string[] | "*") || "*";
+      }
+    } catch {
+      // fallback to all apps if plan lookup fails
+    }
+
     return Response.json({
       valid,
       reason,
       hardware_bound: !!user.hardware_hash,
       server_time: now.toISOString(),
+      plan: planKey,
+      apps: allowedApps,
     });
   } catch (error) {
     console.error("Subscription verify error:", error);

@@ -111,6 +111,20 @@ export const updateSubscriptionSchema = z.object({
   auto_renew: z.boolean().optional(),
 });
 
+export const planSchema = z.object({
+  name: z.string().min(1),
+  key: z.enum(["trial", "monthly", "half_yearly", "yearly", "lifetime"]),
+  duration_days: z.number().int().positive(),
+  price: z.number().min(0),
+  currency: z.string().default("EGP"),
+  grace_period_days: z.number().int().min(0).default(7),
+  max_devices: z.number().int().min(1).default(1),
+  features: z.array(z.string()).default([]),
+  allowed_apps: z.union([z.literal("*"), z.array(z.string())]).default("*"),
+  is_active: z.boolean().default(true),
+  sort_order: z.number().int().default(0),
+});
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),

@@ -24,6 +24,7 @@ const plans = [
     grace_period_days: 0,
     max_devices: 1,
     features: ["جهاز واحد", "جميع الميزات الأساسية", "دعم فني"],
+    allowed_apps: ["dashboard", "clients", "tasks"],
     sort_order: 0,
   },
   {
@@ -34,6 +35,7 @@ const plans = [
     grace_period_days: 7,
     max_devices: 1,
     features: ["جهاز واحد", "جميع الميزات الأساسية", "دعم فني", "تحديثات دورية"],
+    allowed_apps: "*",
     sort_order: 1,
   },
   {
@@ -44,6 +46,7 @@ const plans = [
     grace_period_days: 7,
     max_devices: 2,
     features: ["جهازين", "جميع الميزات الأساسية", "دعم فني", "تحديثات دورية", "خصم 17%"],
+    allowed_apps: "*",
     sort_order: 2,
   },
   {
@@ -54,6 +57,7 @@ const plans = [
     grace_period_days: 14,
     max_devices: 3,
     features: ["ثلاثة أجهزة", "جميع الميزات الأساسية", "دعم فني", "تحديثات دورية", "خصم 25%"],
+    allowed_apps: "*",
     sort_order: 3,
   },
   {
@@ -64,6 +68,7 @@ const plans = [
     grace_period_days: 30,
     max_devices: 5,
     features: ["خمسة أجهزة", "جميع الميزات الأساسية", "دعم فني", "تحديثات دورية", "جميع الإصدارات"],
+    allowed_apps: "*",
     sort_order: 4,
   },
 ];
