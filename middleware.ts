@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import { Invoice } from "@/models/billing/Invoice";
-import { User } from "@/models/User";
-import { Organization } from "@/models/Organization";
+
+export const config = {
+  matcher: ["/api/:path*"],
+};
 
 let lastRun = 0;
 const INTERVAL_MS = 5 * 60 * 1000;
+let isRunning = false;
 
 export async function middleware(request: NextRequest) {
   const now = Date.now();
-  if (now - lastRun < INTERVAL_MS) {
+  if (now - lastRun < INTERVAL_MS || isRunning) {
     return NextResponse.next();
   }
+
+  isRunning = true;
   lastRun = now;
 
   try {
+    const { connectDB } = await import("@/lib/mongodb");
+    const { Invoice } = await import("@/models/billing/Invoice");
+    const { User } = await import("@/models/User");
+    const { Organization } = await import("@/models/Organization");
+
     await connectDB();
     const nowDate = new Date();
 
@@ -78,11 +86,9 @@ export async function middleware(request: NextRequest) {
     }
   } catch (error) {
     console.error("[auto-tasks] Error:", error);
+  } finally {
+    isRunning = false;
   }
 
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: ["/api/:path*"],
-};
