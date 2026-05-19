@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     const password_hash = hashPassword(password);
     const now = new Date();
-    const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const trialEnd = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
     const emailToken = generateToken();
 
     const serial = await generateSerialNumber();

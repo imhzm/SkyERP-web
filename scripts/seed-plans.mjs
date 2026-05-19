@@ -19,7 +19,7 @@ const plans = [
   {
     name: "تجربة مجانية",
     key: "trial",
-    duration_days: 14,
+    duration_days: 2,
     price: 0,
     grace_period_days: 0,
     max_devices: 1,
