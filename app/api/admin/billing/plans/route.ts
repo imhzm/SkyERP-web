@@ -14,6 +14,7 @@ const planSchema = z.object({
   grace_period_days: z.number().int().min(0).optional().default(7),
   max_devices: z.number().int().positive().optional().default(1),
   features: z.array(z.string()).optional().default([]),
+  allowed_apps: z.union([z.array(z.string()), z.literal("*")]).optional().default("*"),
   sort_order: z.number().int().optional().default(0),
 });
 

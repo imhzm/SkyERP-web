@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]" dir="rtl">
       <Container className="text-center">
         <div className="w-24 h-24 mx-auto mb-8 rounded-3xl bg-gradient-to-br from-[#0A6CF1]/20 to-[#8B2CF5]/20 flex items-center justify-center">
           <span className="text-5xl font-bold gradient-text">404</span>

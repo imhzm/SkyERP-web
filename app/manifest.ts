@@ -10,11 +10,24 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#0a0a0a",
     theme_color: "#0A6CF1",
+    lang: "ar",
+    scope: "/",
     icons: [
       {
         src: "/images/logo/sky-erp-icon.png",
         sizes: "192x192",
         type: "image/png",
+      },
+      {
+        src: "/images/logo/sky-erp-icon.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+      {
+        src: "/images/logo/sky-erp-icon.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import GlassCard from "@/components/ui/GlassCard";
 import Button from "@/components/ui/Button";
@@ -10,12 +11,25 @@ interface CardProps {
   icon?: React.ReactNode;
   color?: string;
   gradient?: boolean;
+  image?: string;
 }
 
-export function ModuleCard({ title, description, href, icon, color = "#0A6CF1" }: CardProps) {
+export function ModuleCard({ title, description, href, icon, color = "#0A6CF1", image }: CardProps) {
   return (
     <Link href={href}>
-      <GlassCard className="group h-full cursor-pointer">
+      <GlassCard className="group h-full cursor-pointer overflow-hidden">
+        {image && (
+          <div className="relative w-full h-32 -mx-4 -mt-4 mb-3 overflow-hidden" style={{ width: "calc(100% + 2rem)" }}>
+            <Image
+              src={image}
+              alt={title}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 768px) 100vw, 400px"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
+          </div>
+        )}
         <div className="flex items-start gap-4">
           {icon && (
             <div
@@ -39,10 +53,22 @@ export function ModuleCard({ title, description, href, icon, color = "#0A6CF1" }
   );
 }
 
-export function IndustryCard({ title, description, href }: CardProps) {
+export function IndustryCard({ title, description, href, image }: CardProps) {
   return (
     <Link href={href}>
-      <GlassCard className="group h-full cursor-pointer text-center">
+      <GlassCard className="group h-full cursor-pointer text-center overflow-hidden">
+        {image && (
+          <div className="relative w-full h-28 -mx-4 -mt-4 mb-3 overflow-hidden" style={{ width: "calc(100% + 2rem)" }}>
+            <Image
+              src={image}
+              alt={title}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 768px) 100vw, 400px"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
+          </div>
+        )}
         <h3 className="text-white font-semibold mb-2 group-hover:text-[#0A6CF1] transition-colors">
           {title}
         </h3>

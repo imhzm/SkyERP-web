@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   Globe,
   Settings,
@@ -36,24 +37,44 @@ export default function WhySkyERPSection() {
           subtitle="مبني على نفس فلسفة Sky Wave: Data & AI-Driven، قياس مستمر، تكامل، شفافية، وتحسين مستمر"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {reasons.map((reason, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.08 }}
-              viewport={{ once: true }}
-            >
-              <GlassCard className="text-center h-full">
-                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#0A6CF1]/20 to-[#FF4FD8]/20 flex items-center justify-center">
-                  <reason.icon className="w-7 h-7 text-[#FF4FD8]" />
-                </div>
-                <h3 className="text-white font-semibold mb-2">{reason.title}</h3>
-                <p className="text-white/50 text-sm">{reason.description}</p>
-              </GlassCard>
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="relative rounded-2xl overflow-hidden glass p-2 order-2 lg:order-1"
+          >
+            <div className="relative aspect-[4/3] rounded-xl overflow-hidden">
+              <Image
+                src="/images/skyerp/erp-digital-تحول-رقمي.webp"
+                alt="Sky ERP - التحول الرقمي للشركات"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 600px"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
+            </div>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 order-1 lg:order-2">
+            {reasons.map((reason, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.08 }}
+                viewport={{ once: true }}
+              >
+                <GlassCard className="text-center h-full">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#0A6CF1]/20 to-[#FF4FD8]/20 flex items-center justify-center">
+                    <reason.icon className="w-6 h-6 text-[#FF4FD8]" />
+                  </div>
+                  <h3 className="text-white font-semibold mb-1 text-sm">{reason.title}</h3>
+                  <p className="text-white/50 text-xs">{reason.description}</p>
+                </GlassCard>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </Container>
     </section>

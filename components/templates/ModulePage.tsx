@@ -2,6 +2,7 @@
 
 import { CheckCircle, Target, Workflow, BarChart3, Share2, Users, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import Container from "@/components/ui/Container";
 import SectionHeading from "@/components/ui/SectionHeading";
 import GlassCard from "@/components/ui/GlassCard";
@@ -51,10 +52,24 @@ export function ModulePage({
           <div className="mb-16">
             <Badge variant="primary" className="mb-4">{mod?.name}</Badge>
             <SectionHeading title={hero} subtitle={mod?.description} align="right" />
-            <div className="flex flex-wrap gap-3 mt-8">
+            <div className="flex flex-wrap gap-3 mt-8 mb-8">
               <a href="/register"><Button>التسجيل مجاناً</Button></a>
               <a href={`/apps/${moduleId}`}><Button variant="secondary">شاهد المميزات</Button></a>
             </div>
+            {mod?.image && (
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden glass p-2">
+                <div className="relative w-full h-full rounded-xl overflow-hidden">
+                  <Image
+                    src={mod.image}
+                    alt={mod.name}
+                    fill
+                    className="object-cover object-top"
+                    sizes="(max-width: 1024px) 100vw, 1024px"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 2. Problem */}

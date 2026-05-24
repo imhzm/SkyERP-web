@@ -30,6 +30,7 @@ export default function ModuleGrid() {
                 description={mod.description}
                 href={mod.href}
                 color={mod.color}
+                image={mod.image}
               />
             </motion.div>
           ))}

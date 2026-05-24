@@ -13,7 +13,7 @@ export default function FAQSection() {
       <Container className="relative z-10">
         <SectionHeading
           title="الأسئلة الشائعة"
-          subtitle="إجابات سريعة على أكثر الأسئلة"
+          subtitle="كل اللي محتاج تعرفه عن Sky ERP في سؤال وجواب — من التسجيل للفوترة للدعم الفني"
         />
 
         <div className="max-w-3xl mx-auto space-y-4">

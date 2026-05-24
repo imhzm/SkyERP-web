@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { MessageCircle, Sparkles } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Container from "@/components/ui/Container";
@@ -32,7 +33,7 @@ export default function HeroCommandCenter() {
           </h1>
 
           <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto mb-10 leading-relaxed">
-            {SITE.description}
+            Sky ERP هو نظام ERP سحابي عربي متكامل — محاسبة، مبيعات، مشتريات، مخزون، HR، CRM، نقاط بيع، ذكاء اصطناعي، وتقارير لحظية. كل إدارات شركتك في نظام واحد ومنصة واحدة
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -65,13 +66,15 @@ export default function HeroCommandCenter() {
           className="mt-16 relative"
         >
           <div className="glass rounded-2xl p-2 max-w-5xl mx-auto">
-            <div className="aspect-video rounded-xl bg-gradient-to-br from-[#001A3A] to-[#0A6CF1]/20 flex items-center justify-center">
-              <div className="text-center text-white/30">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#0A6CF1]/20 flex items-center justify-center">
-                  <Sparkles className="w-8 h-8 text-[#0A6CF1]" />
-                </div>
-                <p className="text-sm">Dashboard تفاعلي - قيد الإنشاء</p>
-              </div>
+            <div className="aspect-video rounded-xl overflow-hidden relative bg-gradient-to-br from-[#001A3A] to-[#0A6CF1]/20">
+              <Image
+                src="/images/skyerp/erp-dashboard-ادارة-الشركات.webp"
+                alt="Sky ERP Dashboard - لوحة تحكم متكاملة لإدارة الشركات"
+                fill
+                className="object-cover object-top"
+                priority
+                sizes="(max-width: 1024px) 100vw, 1024px"
+              />
             </div>
           </div>
         </motion.div>

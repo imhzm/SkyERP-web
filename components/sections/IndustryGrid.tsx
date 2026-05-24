@@ -30,6 +30,7 @@ export default function IndustryGrid() {
                 title={ind.name}
                 description={ind.description}
                 href={ind.href}
+                image={ind.image}
               />
             </motion.div>
           ))}

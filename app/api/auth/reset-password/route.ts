@@ -11,8 +11,7 @@ export async function POST(request: NextRequest) {
   const rl = await checkRateLimit(`reset-pw:${ip}`, "auth:reset-password");
   if (!rl.allowed) return getRateLimitResponse(rl.resetIn);
 
-  let body: unknown;
-  try { body = await request.json(); } catch { return Response.json({ error: "بيانات غير صالحة" }, { status: 400 }); }
+  const body = await request.json();
 
   const parsed = resetPasswordSchema.safeParse(body);
   if (!parsed.success) {
