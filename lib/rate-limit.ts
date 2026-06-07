@@ -100,7 +100,6 @@ class RedisRateLimitStore implements RateLimitStore {
   }
 
   async set(key: string, value: { count: number; resetAt: number }, ttlMs: number): Promise<void> {
-    const ttlSeconds = Math.ceil(ttlMs / 1000) + 1;
     await this.client.set(`rl:${key}`, JSON.stringify(value), "PX", ttlMs + 1000);
   }
 
