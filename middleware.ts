@@ -14,6 +14,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const internalSecret = process.env.INTERNAL_TASK_SECRET || process.env.CRON_SECRET;
+  if (!internalSecret) {
+    return NextResponse.next();
+  }
+
   isRunning = true;
   lastRun = now;
 
@@ -22,8 +27,13 @@ export async function middleware(request: NextRequest) {
 
   fetch(autoTasksUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-  }).catch(() => {});
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-task-secret": internalSecret,
+    },
+  }).catch(() => {}).finally(() => {
+    isRunning = false;
+  });
 
   return NextResponse.next();
 }

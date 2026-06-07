@@ -3,11 +3,34 @@ import { Invoice } from "@/models/billing/Invoice";
 import { User } from "@/models/User";
 import { Organization } from "@/models/Organization";
 
-export async function POST() {
+function getInternalTaskSecret(): string {
+  return process.env.INTERNAL_TASK_SECRET || process.env.CRON_SECRET || "";
+}
+
+function getRequestSecret(request: Request): string {
+  const headerSecret = request.headers.get("x-internal-task-secret");
+  if (headerSecret) return headerSecret;
+  const authorization = request.headers.get("authorization") || "";
+  return authorization.replace(/^Bearer\s+/i, "");
+}
+
+export async function POST(request: Request) {
+  const expectedSecret = getInternalTaskSecret();
+  if (!expectedSecret) {
+    return Response.json(
+      { success: false, error: "Internal task secret is not configured" },
+      { status: 503 }
+    );
+  }
+
+  if (getRequestSecret(request) !== expectedSecret) {
+    return Response.json({ success: false, error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     await connectDB();
     const nowDate = new Date();
-    let results: Record<string, number> = {};
+    const results: Record<string, number> = {};
 
     const overdueResult = await Invoice.updateMany(
       { status: "pending", due_date: { $lt: nowDate } },
