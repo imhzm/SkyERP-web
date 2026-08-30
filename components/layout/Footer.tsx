@@ -95,6 +95,19 @@ export default function Footer() {
           <p className="text-white/30 text-xs">
             &copy; {new Date().getFullYear()} {SITE.name}. جميع الحقوق محفوظة.
           </p>
+          <p className="flex items-center gap-1.5 text-white/50 text-xs">
+            <span>تم التصميم بكل</span>
+            <span className="text-red-500 font-normal">❤️</span>
+            <span>بواسطة</span>
+            <a
+              href="https://www.skywaveads.com"
+              target="_blank"
+              rel="follow"
+              className="underline underline-offset-4 text-[#0A6CF1] hover:text-blue-300 font-medium transition-colors"
+            >
+              Sky Wave
+            </a>
+          </p>
           <div className="flex items-center gap-4">
             <Link
               href="/privacy-policy"
